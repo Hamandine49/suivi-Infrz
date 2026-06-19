@@ -229,7 +229,7 @@ select.form-input { appearance: none; background-image: url("data:image/svg+xml,
 /* ── LOADER ──────────────────────────────────────────────────────── */
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--g1); border-radius: 50%; animation: spin .6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,.7); z-index: 150; align-items: center; justify-content: center; }
+.loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,.7); z-index: 150; align-items: center; justify-content: center; pointer-events: none; }
 .loading-overlay.on { display: flex; }
 
 /* ── FACTURE MARK ────────────────────────────────────────────────── */
@@ -557,7 +557,7 @@ CREATE INDEX ON contrats(produit);</pre>
 </div>
 
 <div class="toast-wrap" id="toast-wrap"></div>
-<div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+<div class="loading-overlay" id="loading" style="display:none;pointer-events:none;"><div class="spinner"></div></div>
 
 <script>
 // ══════════════════════════════════════════════════════════════════════════
@@ -751,7 +751,7 @@ async function loadAll() {
     contracts = co || [];
     renderAll();
   } catch(e) { toast('Erreur chargement : ' + e.message, 'err'); }
-  document.getElementById('loading').classList.remove('on');
+  document.getElementById('loading').classList.remove('on'); document.getElementById('loading').style.display='none';
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1160,6 +1160,13 @@ document.getElementById('modal-client-overlay').addEventListener('click', e => {
 // ══════════════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════════════
+
+// Safety net: force-hide loading overlay after 3s
+setTimeout(() => {
+  const l = document.getElementById('loading');
+  if (l) { l.classList.remove('on'); l.style.display = 'none'; l.style.pointerEvents = 'none'; }
+}, 3000);
+
 (async function init() {
   const url = localStorage.getItem('sb_url');
   const key = localStorage.getItem('sb_key');

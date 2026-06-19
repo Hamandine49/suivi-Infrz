@@ -3,411 +3,288 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inforezo — Suivi Contrats</title>
+<title>Inforezo - Suivi Contrats</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-/* ── TOKENS ──────────────────────────────────────────────────────── */
-:root {
-  --g1: #7AB319;
-  --g2: #5a8a0e;
-  --g3: #3d5e09;
-  --ink: #1a1a1a;
-  --ink2: #444;
-  --ink3: #888;
-  --surface: #f7f8f5;
-  --card: #ffffff;
-  --border: #e2e6d8;
-  --red: #d94f4f;
-  --orange: #e08c1a;
-  --green: #4a9e3f;
-  --blue: #2d7dd2;
-  --red-bg: #fdf1f1;
-  --orange-bg: #fef8ee;
-  --green-bg: #f1f8f0;
-  --blue-bg: #f0f6fd;
-  --font-ui: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Mono', monospace;
-  --radius: 10px;
-  --shadow: 0 1px 4px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05);
-}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#1a1a1a}
+button{cursor:pointer;font-family:inherit}
+input,select{font-family:inherit}
 
-/* ── RESET ───────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 15px; }
-body { font-family: var(--font-ui); background: var(--surface); color: var(--ink); min-height: 100vh; }
-button { cursor: pointer; font-family: inherit; }
-input, select, textarea { font-family: inherit; }
-a { color: var(--g1); text-decoration: none; }
+/* LAYOUT */
+.sidebar{position:fixed;top:0;left:0;width:200px;height:100vh;background:#1a1a1a;z-index:10;overflow-y:auto;display:flex;flex-direction:column}
+.logo{padding:20px;border-bottom:1px solid #333}
+.logo-name{color:#7AB319;font-size:1.2rem;font-weight:700}
+.logo-sub{color:#666;font-size:.7rem;margin-top:2px}
+.nav{padding:8px 0;flex:1}
+.nav-section{padding:14px 16px 4px;color:#555;font-size:.65rem;text-transform:uppercase;letter-spacing:1px}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;background:none;border:none;color:#aaa;font-size:.85rem;text-align:left;cursor:pointer;border-left:3px solid transparent;transition:all .15s}
+.nav-btn:hover{background:#252525;color:#fff}
+.nav-btn.active{background:#1a2a0a;color:#7AB319;border-left-color:#7AB319}
+.main{margin-left:200px;min-height:100vh}
 
-/* ── LAYOUT ──────────────────────────────────────────────────────── */
-.sidebar {
-  position: fixed; top: 0; left: 0; width: 220px; height: 100vh;
-  background: var(--ink); display: flex; flex-direction: column;
-  z-index: 100; overflow-y: auto;
-}
-.sidebar-logo {
-  padding: 24px 20px 16px;
-  border-bottom: 1px solid rgba(255,255,255,.1);
-}
-.sidebar-logo .brand { color: var(--g1); font-size: 1.25rem; font-weight: 700; letter-spacing: -.5px; }
-.sidebar-logo .sub { color: rgba(255,255,255,.4); font-size: .72rem; margin-top: 2px; }
-.sidebar-nav { padding: 12px 0; flex: 1; }
-.nav-section { padding: 16px 20px 6px; color: rgba(255,255,255,.3); font-size: .65rem; text-transform: uppercase; letter-spacing: 1px; }
-.nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 20px; color: rgba(255,255,255,.65); font-size: .85rem;
-  cursor: pointer; transition: all .15s; border-left: 3px solid transparent;
-}
-.nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
-.nav-item.active { background: rgba(122,179,25,.12); color: var(--g1); border-left-color: var(--g1); }
-.nav-item .icon { width: 16px; text-align: center; opacity: .7; }
-.nav-item.active .icon { opacity: 1; }
-.main { margin-left: 220px; min-height: 100vh; }
-.topbar {
-  background: var(--card); border-bottom: 1px solid var(--border);
-  padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 50;
-}
-.topbar-title { font-size: 1rem; font-weight: 600; color: var(--ink); }
-.topbar-meta { font-size: .8rem; color: var(--ink3); }
-.page { padding: 28px 32px; display: none; }
-.page.active { display: block; }
+/* TOPBAR */
+.topbar{background:#fff;border-bottom:1px solid #e0e0e0;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+.topbar-title{font-weight:700;font-size:1rem}
+.topbar-meta{font-size:.75rem;color:#888;margin-top:2px}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:#ccc}
+.conn-dot.ok{background:#4a9e3f}
+.conn-dot.demo{background:#e08c1a}
 
-/* ── CONFIG PAGE ─────────────────────────────────────────────────── */
-.config-card {
-  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 32px; max-width: 560px; margin: 40px auto;
-}
-.config-card h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
-.config-card p { color: var(--ink3); font-size: .85rem; margin-bottom: 24px; line-height: 1.6; }
-.form-group { margin-bottom: 16px; }
-.form-label { display: block; font-size: .78rem; font-weight: 600; color: var(--ink2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
-.form-input {
-  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
-  font-size: .88rem; color: var(--ink); background: var(--surface);
-  transition: border-color .15s;
-}
-.form-input:focus { outline: none; border-color: var(--g1); background: #fff; }
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 6px; font-size: .85rem; font-weight: 600; border: none; transition: all .15s; }
-.btn-primary { background: var(--g1); color: #fff; }
-.btn-primary:hover { background: var(--g2); }
-.btn-danger { background: var(--red-bg); color: var(--red); }
-.btn-danger:hover { background: #fad4d4; }
-.btn-ghost { background: transparent; color: var(--ink2); border: 1px solid var(--border); }
-.btn-ghost:hover { background: var(--surface); }
-.btn-sm { padding: 6px 12px; font-size: .78rem; }
-.config-status { margin-top: 16px; padding: 12px; border-radius: 6px; font-size: .82rem; }
-.config-status.ok { background: var(--green-bg); color: var(--green); }
-.config-status.err { background: var(--red-bg); color: var(--red); }
+/* PAGES */
+.page{display:none;padding:24px 28px}
+.page.active{display:block}
 
-/* ── KPIS ────────────────────────────────────────────────────────── */
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
-.kpi {
-  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 20px; position: relative; overflow: hidden;
-}
-.kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--g1); }
-.kpi.red::before { background: var(--red); }
-.kpi.orange::before { background: var(--orange); }
-.kpi.blue::before { background: var(--blue); }
-.kpi-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .8px; color: var(--ink3); font-weight: 600; margin-bottom: 8px; }
-.kpi-value { font-size: 2rem; font-weight: 700; color: var(--ink); line-height: 1; }
-.kpi-sub { font-size: .75rem; color: var(--ink3); margin-top: 4px; }
-.kpi.red .kpi-value { color: var(--red); }
-.kpi.orange .kpi-value { color: var(--orange); }
-.kpi.blue .kpi-value { color: var(--blue); }
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;font-size:.83rem;font-weight:600;border:none;cursor:pointer;transition:background .15s}
+.btn-green{background:#7AB319;color:#fff}
+.btn-green:hover{background:#5a8a0e}
+.btn-grey{background:#f0f0f0;color:#444;border:1px solid #ddd}
+.btn-grey:hover{background:#e5e5e5}
+.btn-red{background:#fdf1f1;color:#c0392b;border:1px solid #f5c6c6}
+.btn-sm{padding:5px 10px;font-size:.75rem}
 
-/* ── SECTION HEADERS ─────────────────────────────────────────────── */
-.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.section-title { font-size: .95rem; font-weight: 700; color: var(--ink); }
-.section-sub { font-size: .78rem; color: var(--ink3); margin-top: 2px; }
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.kpi{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:18px;border-top:3px solid #7AB319}
+.kpi.red{border-top-color:#c0392b}
+.kpi.orange{border-top-color:#e08c1a}
+.kpi.blue{border-top-color:#2d7dd2}
+.kpi-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.6px;color:#888;font-weight:600;margin-bottom:6px}
+.kpi-val{font-size:1.9rem;font-weight:700}
+.kpi.red .kpi-val{color:#c0392b}
+.kpi.orange .kpi-val{color:#e08c1a}
+.kpi.blue .kpi-val{color:#2d7dd2}
+.kpi-sub{font-size:.72rem;color:#aaa;margin-top:3px}
 
-/* ── PRODUCT GRID ────────────────────────────────────────────────── */
-.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 28px; }
-.product-card {
-  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 16px; cursor: pointer; transition: border-color .15s, transform .1s;
-}
-.product-card:hover { border-color: var(--g1); transform: translateY(-1px); }
-.product-card.selected { border-color: var(--g1); background: var(--green-bg); }
-.product-icon { font-size: 1.4rem; margin-bottom: 8px; }
-.product-name { font-size: .82rem; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
-.product-count { font-size: 1.6rem; font-weight: 700; color: var(--g1); }
-.product-label { font-size: .72rem; color: var(--ink3); }
+/* SECTION */
+.section-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.section-title{font-size:.9rem;font-weight:700}
+.section-sub{font-size:.75rem;color:#888}
 
-/* ── ALERT TABLE ─────────────────────────────────────────────────── */
-.table-wrap {
-  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-  overflow: hidden; margin-bottom: 24px;
-}
-.data-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
-.data-table th {
-  background: var(--surface); padding: 10px 14px; text-align: left;
-  font-size: .7rem; text-transform: uppercase; letter-spacing: .6px;
-  color: var(--ink3); font-weight: 600; border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-.data-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: var(--surface); }
-.data-table .client-name { font-weight: 600; color: var(--ink); }
-.data-table .service-tag {
-  display: inline-block; padding: 2px 8px; border-radius: 20px;
-  font-size: .7rem; font-weight: 600; background: var(--green-bg); color: var(--green);
-}
-.data-table .amount { font-family: var(--font-mono); font-size: .82rem; font-weight: 600; }
+/* PRODUCT CARDS */
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:24px}
+.prod-card{background:#fff;border:2px solid #e0e0e0;border-radius:8px;padding:14px;cursor:pointer;transition:border-color .15s}
+.prod-card:hover{border-color:#7AB319}
+.prod-card.sel{border-color:#7AB319;background:#f1f8e8}
+.prod-icon{font-size:1.3rem;margin-bottom:6px}
+.prod-name{font-size:.78rem;font-weight:700;margin-bottom:4px}
+.prod-count{font-size:1.5rem;font-weight:700;color:#7AB319}
+.prod-lbl{font-size:.68rem;color:#888}
 
-/* ── STATUS BADGES ───────────────────────────────────────────────── */
-.badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 9px; border-radius: 20px; font-size: .72rem; font-weight: 700;
-}
-.badge.red    { background: var(--red-bg);    color: var(--red); }
-.badge.orange { background: var(--orange-bg); color: var(--orange); }
-.badge.green  { background: var(--green-bg);  color: var(--green); }
+/* TABLE */
+.tbl-wrap{background:#fff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{background:#f8f8f8;padding:9px 12px;text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:#888;font-weight:600;border-bottom:1px solid #e0e0e0;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.td-bold{font-weight:600}
+.td-mono{font-family:monospace;font-size:.8rem}
+.td-grey{color:#888;font-size:.78rem}
 
-/* ── MONTH FILTER ────────────────────────────────────────────────── */
-.month-nav { display: flex; align-items: center; gap: 8px; }
-.month-btn {
-  width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 6px;
-  background: var(--card); color: var(--ink2); display: flex; align-items: center; justify-content: center;
-  font-size: .9rem; transition: all .15s;
-}
-.month-btn:hover { border-color: var(--g1); color: var(--g1); }
-.month-label { font-size: .9rem; font-weight: 700; color: var(--ink); min-width: 140px; text-align: center; }
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:700}
+.badge-red{background:#fdf1f1;color:#c0392b}
+.badge-orange{background:#fef8ee;color:#e08c1a}
+.badge-green{background:#f1f8f0;color:#4a9e3f}
+.badge-blue{background:#f0f6fd;color:#2d7dd2}
+.badge-grey{background:#f0f0f0;color:#666}
 
-/* ── CALENDAR STRIP ──────────────────────────────────────────────── */
-.cal-strip { display: grid; grid-template-columns: repeat(12,1fr); gap: 6px; margin-bottom: 24px; }
-.cal-month {
-  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-  padding: 10px 6px; text-align: center; cursor: pointer; transition: all .15s;
-}
-.cal-month:hover { border-color: var(--g1); }
-.cal-month.has-items { border-color: var(--orange); }
-.cal-month.has-late  { border-color: var(--red); }
-.cal-month.selected  { background: var(--g1); border-color: var(--g1); }
-.cal-month.selected .cal-mname, .cal-month.selected .cal-mcount { color: #fff !important; }
-.cal-mname { font-size: .68rem; text-transform: uppercase; letter-spacing: .5px; color: var(--ink3); font-weight: 600; }
-.cal-mcount { font-size: 1.1rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
-.cal-mamount { font-size: .65rem; color: var(--ink3); margin-top: 1px; }
+/* CALENDAR */
+.cal-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;margin-bottom:20px}
+.cal-cell{background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:8px 4px;text-align:center;cursor:pointer;transition:all .15s}
+.cal-cell:hover{border-color:#7AB319}
+.cal-cell.has-late{border-color:#c0392b;background:#fdf8f8}
+.cal-cell.has-soon{border-color:#e08c1a;background:#fefaf4}
+.cal-cell.sel{background:#7AB319;border-color:#7AB319}
+.cal-cell.sel .cal-mn,.cal-cell.sel .cal-ct{color:#fff}
+.cal-mn{font-size:.65rem;text-transform:uppercase;color:#888;font-weight:600}
+.cal-ct{font-size:1rem;font-weight:700;color:#1a1a1a;margin-top:2px}
+.cal-amt{font-size:.6rem;color:#aaa;margin-top:1px}
 
-/* ── MODAL ───────────────────────────────────────────────────────── */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200;
-  display: none; align-items: center; justify-content: center;
-}
-.modal-overlay.open { display: flex; }
-.modal {
-  background: var(--card); border-radius: 12px; width: 540px; max-height: 90vh;
-  overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2);
-}
-.modal-head {
-  padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.modal-head h3 { font-size: .95rem; font-weight: 700; }
-.modal-close { background: none; border: none; font-size: 1.2rem; color: var(--ink3); padding: 4px; }
-.modal-close:hover { color: var(--ink); }
-.modal-body { padding: 20px 24px; }
-.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:none;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:10px;width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.modal-hd{padding:18px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between}
+.modal-hd h3{font-size:.9rem;font-weight:700}
+.modal-close{background:none;border:none;font-size:1.2rem;color:#aaa;cursor:pointer;padding:2px 6px}
+.modal-close:hover{color:#333}
+.modal-body{padding:18px 20px}
+.modal-ft{padding:14px 20px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:8px}
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:.72rem;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.form-input{width:100%;padding:9px 11px;border:1px solid #ddd;border-radius:6px;font-size:.85rem;background:#fafafa}
+.form-input:focus{outline:none;border-color:#7AB319;background:#fff}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-hint{font-size:.7rem;color:#aaa;margin-top:3px}
 
-/* ── TOAST ───────────────────────────────────────────────────────── */
-.toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
-.toast { padding: 12px 16px; border-radius: 8px; font-size: .83rem; font-weight: 600; box-shadow: var(--shadow); animation: slideIn .2s ease; }
-.toast.ok  { background: var(--green); color: #fff; }
-.toast.err { background: var(--red);   color: #fff; }
-@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+/* TOAST */
+.toasts{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 14px;border-radius:6px;font-size:.82rem;font-weight:600;color:#fff;animation:fadeIn .2s}
+.toast.ok{background:#4a9e3f}
+.toast.err{background:#c0392b}
+@keyframes fadeIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
 
-/* ── EMPTY STATE ─────────────────────────────────────────────────── */
-.empty { text-align: center; padding: 48px 24px; color: var(--ink3); }
-.empty .empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: .4; }
-.empty p { font-size: .88rem; }
+/* EMPTY */
+.empty{text-align:center;padding:40px;color:#aaa;font-size:.85rem}
 
-/* ── LOADER ──────────────────────────────────────────────────────── */
-.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--g1); border-radius: 50%; animation: spin .6s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,.7); z-index: 150; align-items: center; justify-content: center; pointer-events: none; }
-.loading-overlay.on { display: flex; }
+/* CONFIG */
+.cfg-card{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:28px;max-width:520px;margin:0 auto 16px}
+.cfg-card h2{font-size:1rem;font-weight:700;margin-bottom:6px}
+.cfg-card p{color:#888;font-size:.82rem;margin-bottom:20px;line-height:1.6}
+.cfg-status{margin-top:12px;padding:10px;border-radius:6px;font-size:.8rem}
+.cfg-ok{background:#f1f8f0;color:#4a9e3f}
+.cfg-err{background:#fdf1f1;color:#c0392b}
+.sql-block{background:#f5f5f5;border:1px solid #e0e0e0;border-radius:6px;padding:12px;font-size:.7rem;font-family:monospace;overflow-x:auto;line-height:1.7;color:#444;white-space:pre;margin-bottom:10px}
 
-/* ── FACTURE MARK ────────────────────────────────────────────────── */
-.fact-ref { font-family: var(--font-mono); font-size: .75rem; color: var(--ink3); }
-.fact-done { color: var(--green); font-weight: 600; }
-
-/* ── RESPONSIVE (tablet) ─────────────────────────────────────────── */
-@media (max-width: 900px) {
-  .sidebar { width: 60px; }
-  .sidebar-logo .brand, .sidebar-logo .sub, .nav-section, .nav-item span { display: none; }
-  .main { margin-left: 60px; }
-  .topbar, .page { padding-left: 20px; padding-right: 20px; }
-  .cal-strip { grid-template-columns: repeat(6,1fr); }
-  .form-row { grid-template-columns: 1fr; }
+@media(max-width:800px){
+  .sidebar{width:50px}
+  .logo-name,.logo-sub,.nav-section,.nav-btn span{display:none}
+  .main{margin-left:50px}
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .cal-grid{grid-template-columns:repeat(6,1fr)}
 }
 </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
 <aside class="sidebar">
-  <div class="sidebar-logo">
-    <div class="brand">Inforezo</div>
-    <div class="sub">Suivi contrats</div>
+  <div class="logo">
+    <div class="logo-name">Inforezo</div>
+    <div class="logo-sub">Suivi contrats</div>
   </div>
-  <nav class="sidebar-nav">
+  <nav class="nav">
     <div class="nav-section">Tableau</div>
-    <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span><span>Vue globale</span></div>
-    <div class="nav-item" data-page="monthly"><span class="icon">📅</span><span>Par mois</span></div>
-    <div class="nav-section">Données</div>
-    <div class="nav-item" data-page="contracts"><span class="icon">📋</span><span>Contrats</span></div>
-    <div class="nav-item" data-page="clients"><span class="icon">👥</span><span>Clients</span></div>
-    <div class="nav-section">Système</div>
-    <div class="nav-item" data-page="config"><span class="icon">⚙️</span><span>Configuration</span></div>
+    <button class="nav-btn active" onclick="goto('dashboard')"><span>&#128202;</span><span>Vue globale</span></button>
+    <button class="nav-btn" onclick="goto('monthly')"><span>&#128197;</span><span>Par mois</span></button>
+    <div class="nav-section">Donnees</div>
+    <button class="nav-btn" onclick="goto('contracts')"><span>&#128203;</span><span>Contrats</span></button>
+    <button class="nav-btn" onclick="goto('clients')"><span>&#128101;</span><span>Clients</span></button>
+    <div class="nav-section">Systeme</div>
+    <button class="nav-btn" onclick="goto('config')"><span>&#9881;</span><span>Configuration</span></button>
   </nav>
 </aside>
 
 <main class="main">
-
-<!-- TOPBAR -->
-<div class="topbar">
-  <div>
-    <div class="topbar-title" id="topbar-title">Vue globale</div>
-    <div class="topbar-meta" id="topbar-meta">Chargement…</div>
-  </div>
-  <div style="display:flex;gap:8px;align-items:center;">
-    <button class="btn btn-primary btn-sm" onclick="openModal('add')">+ Ajouter</button>
-    <span id="conn-dot" style="width:8px;height:8px;border-radius:50%;background:var(--ink3);display:inline-block;" title="Non connecté"></span>
-  </div>
-</div>
-
-<!-- ── PAGE : DASHBOARD ── -->
-<div class="page active" id="page-dashboard">
-
-  <div class="kpi-grid" id="kpi-grid">
-    <div class="kpi"><div class="kpi-label">Contrats actifs</div><div class="kpi-value" id="k-total">—</div><div class="kpi-sub">toutes catégories</div></div>
-    <div class="kpi red"><div class="kpi-label">En retard</div><div class="kpi-value" id="k-late">—</div><div class="kpi-sub">à facturer immédiatement</div></div>
-    <div class="kpi orange"><div class="kpi-label">Ce mois-ci</div><div class="kpi-value" id="k-month">—</div><div class="kpi-sub">échéances dans 30 j</div></div>
-    <div class="kpi blue"><div class="kpi-label">CA annuel estimé</div><div class="kpi-value" id="k-ca">—</div><div class="kpi-sub">HT, sur base actuelle</div></div>
-  </div>
-
-  <div class="section-header">
-    <div><div class="section-title">Licences par produit</div><div class="section-sub">Cliquer pour filtrer la liste</div></div>
-    <button class="btn btn-ghost btn-sm" id="clear-filter" style="display:none" onclick="clearFilter()">✕ Tout afficher</button>
-  </div>
-  <div class="product-grid" id="product-grid"></div>
-
-  <div class="section-header">
-    <div><div class="section-title" id="alert-title">Alertes</div></div>
-  </div>
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Client</th><th>Produit</th><th>Périodicité</th>
-          <th>Montant HT</th><th>Éch. contractuelle</th>
-          <th>Prochaine éch.</th><th>Statut</th><th>Facture EBP</th><th></th>
-        </tr>
-      </thead>
-      <tbody id="alert-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ── PAGE : MONTHLY ── -->
-<div class="page" id="page-monthly">
-  <div class="section-header" style="margin-bottom:20px;">
-    <div class="section-title">Calendrier de facturation — 12 mois</div>
-  </div>
-  <div class="cal-strip" id="cal-strip"></div>
-
-  <div class="section-header">
+  <div class="topbar">
     <div>
-      <div class="section-title" id="month-view-title">—</div>
-      <div class="section-sub" id="month-view-sub"></div>
+      <div class="topbar-title" id="page-title">Vue globale</div>
+      <div class="topbar-meta" id="page-meta"></div>
     </div>
-    <div class="month-nav">
-      <button class="month-btn" onclick="shiftMonth(-1)">‹</button>
-      <span class="month-label" id="month-label-nav">—</span>
-      <button class="month-btn" onclick="shiftMonth(1)">›</button>
+    <div class="topbar-right">
+      <button class="btn btn-green btn-sm" onclick="openContractModal()">+ Ajouter un contrat</button>
+      <div class="conn-dot demo" id="conn-dot" title="Mode demo"></div>
     </div>
-  </div>
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Client</th><th>Produit</th><th>Détail</th>
-          <th>Montant HT</th><th>Prochaine éch.</th><th>Statut</th><th>Facture EBP</th><th></th>
-        </tr>
-      </thead>
-      <tbody id="month-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ── PAGE : CONTRACTS ── -->
-<div class="page" id="page-contracts">
-  <div class="section-header">
-    <div class="section-title">Tous les contrats</div>
-    <div style="display:flex;gap:8px;">
-      <input class="form-input" id="search-contracts" placeholder="Rechercher…" style="width:200px;padding:7px 12px;" oninput="renderContracts()">
-      <select class="form-input" id="filter-product" style="width:160px;padding:7px 12px;" onchange="renderContracts()">
-        <option value="">Tous les produits</option>
-      </select>
-    </div>
-  </div>
-  <div class="table-wrap" style="margin-top:14px;">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Client</th><th>Produit</th><th>Détail</th><th>Périodicité</th>
-          <th>Montant HT</th><th>Dern. facture</th><th>Éch. contractuelle</th>
-          <th>Prochaine éch.</th><th>Statut</th><th>Facture EBP</th><th></th>
-        </tr>
-      </thead>
-      <tbody id="contracts-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ── PAGE : CLIENTS ── -->
-<div class="page" id="page-clients">
-  <div class="section-header">
-    <div class="section-title">Clients</div>
-    <button class="btn btn-primary btn-sm" onclick="openClientModal()">+ Nouveau client</button>
-  </div>
-  <div class="table-wrap" style="margin-top:14px;">
-    <table class="data-table">
-      <thead><tr><th>Nom</th><th>Type</th><th>Contact</th><th>Email</th><th>Tél.</th><th>Dept</th><th>Contrats actifs</th><th></th></tr></thead>
-      <tbody id="clients-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ── PAGE : CONFIG ── -->
-<div class="page" id="page-config">
-  <div class="config-card">
-    <h2>⚙️ Configuration Supabase</h2>
-    <p>Renseignez l'URL et la clé publique (anon key) de votre projet Supabase. Ces informations sont visibles dans <strong>Project Settings → API</strong> de votre tableau de bord Supabase.</p>
-    <div class="form-group">
-      <label class="form-label">URL du projet Supabase</label>
-      <input class="form-input" id="cfg-url" placeholder="https://xxxxxxxxxxxx.supabase.co" />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Clé publique (anon key)</label>
-      <input class="form-input" id="cfg-key" placeholder="eyJhbGciOi…" />
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button class="btn btn-primary" onclick="saveConfig()">Enregistrer & tester</button>
-      <button class="btn btn-ghost" onclick="initDemo()">Mode démo (sans Supabase)</button>
-    </div>
-    <div id="cfg-status" class="config-status" style="display:none;"></div>
   </div>
 
-  <div class="config-card" style="margin-top:16px;max-width:560px;margin-left:auto;margin-right:auto;">
-    <h2>🗄️ Initialiser la base de données</h2>
-    <p>Copiez ce SQL dans l'éditeur SQL de Supabase (SQL Editor → New query) pour créer les tables nécessaires.</p>
-    <pre style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;font-size:.72rem;overflow-x:auto;line-height:1.6;color:var(--ink2);">-- Clients
+  <!-- DASHBOARD -->
+  <div class="page active" id="p-dashboard">
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Contrats actifs</div><div class="kpi-val" id="k-total">0</div><div class="kpi-sub">toutes categories</div></div>
+      <div class="kpi red"><div class="kpi-label">En retard</div><div class="kpi-val" id="k-late">0</div><div class="kpi-sub">a facturer maintenant</div></div>
+      <div class="kpi orange"><div class="kpi-label">Dans 30 jours</div><div class="kpi-val" id="k-soon">0</div><div class="kpi-sub">echeances proches</div></div>
+      <div class="kpi blue"><div class="kpi-label">CA annuel estime</div><div class="kpi-val" id="k-ca">0 EUR</div><div class="kpi-sub">HT base actuelle</div></div>
+    </div>
+    <div class="section-hd">
+      <div class="section-title">Contrats par produit</div>
+      <button class="btn btn-grey btn-sm" id="btn-clear" style="display:none" onclick="clearFilter()">Tout afficher</button>
+    </div>
+    <div class="prod-grid" id="prod-grid"></div>
+    <div class="section-hd">
+      <div><div class="section-title" id="alert-title">Alertes</div></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>Produit</th><th>Periodicite</th><th>Montant HT</th><th>Echeance contractuelle</th><th>Prochaine echeance</th><th>Statut</th><th>Facture EBP</th><th></th></tr></thead>
+        <tbody id="alert-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MONTHLY -->
+  <div class="page" id="p-monthly">
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="section-hd">
+      <div>
+        <div class="section-title" id="month-title">-</div>
+        <div class="section-sub" id="month-sub"></div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-grey btn-sm" onclick="shiftMonth(-1)">&#8249;</button>
+        <span id="month-nav-lbl" style="font-size:.85rem;font-weight:600;min-width:130px;text-align:center">-</span>
+        <button class="btn btn-grey btn-sm" onclick="shiftMonth(1)">&#8250;</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>Produit</th><th>Detail</th><th>Montant HT</th><th>Prochaine echeance</th><th>Statut</th><th>Facture EBP</th><th></th></tr></thead>
+        <tbody id="month-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CONTRACTS -->
+  <div class="page" id="p-contracts">
+    <div class="section-hd">
+      <div class="section-title">Tous les contrats</div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="search" placeholder="Rechercher..." style="width:180px" oninput="renderContracts()">
+        <select class="form-input" id="filter-prod" style="width:150px" onchange="renderContracts()">
+          <option value="">Tous les produits</option>
+          <option>Office 365</option><option>Domaines</option><option>ESET MSP</option>
+          <option>Sauvegarde</option><option>Licences</option><option>Contrats EPP</option>
+          <option>Maintenance Serveur</option><option>Licences VPN</option>
+        </select>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>Client</th><th>Produit</th><th>Detail</th><th>Periodicite</th><th>Montant HT</th><th>Dern. facture</th><th>Echeance contrat</th><th>Prochaine ech.</th><th>Statut</th><th>Facture EBP</th><th></th></tr></thead>
+        <tbody id="contracts-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CLIENTS -->
+  <div class="page" id="p-clients">
+    <div class="section-hd">
+      <div class="section-title">Clients</div>
+      <button class="btn btn-green btn-sm" onclick="openClientModal()">+ Nouveau client</button>
+    </div>
+    <div class="tbl-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>Nom</th><th>Type</th><th>Contact</th><th>Email</th><th>Tel</th><th>Dept</th><th>Contrats</th><th></th></tr></thead>
+        <tbody id="clients-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CONFIG -->
+  <div class="page" id="p-config">
+    <div class="cfg-card">
+      <h2>Configuration Supabase</h2>
+      <p>Renseignez l'URL et la cle publique de votre projet Supabase.<br>Ces informations sont dans <strong>Project Settings &gt; API</strong> de votre tableau de bord Supabase.</p>
+      <div class="form-group">
+        <label class="form-label">URL du projet Supabase</label>
+        <input class="form-input" id="cfg-url" placeholder="https://xxxxxxxxx.supabase.co">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cle publique (anon key)</label>
+        <input class="form-input" id="cfg-key" placeholder="eyJhbGci...">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-green" onclick="saveConfig()">Enregistrer et tester</button>
+        <button class="btn btn-grey" onclick="loadDemo()">Mode demo</button>
+      </div>
+      <div id="cfg-msg" style="display:none;margin-top:12px;padding:10px;border-radius:6px;font-size:.8rem"></div>
+    </div>
+    <div class="cfg-card">
+      <h2>Initialiser la base de donnees</h2>
+      <p>Copiez ce SQL dans <strong>Supabase > SQL Editor > New query</strong> puis cliquez Run.</p>
+      <div class="sql-block">-- Table clients
 CREATE TABLE clients (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   nom text NOT NULL,
@@ -421,7 +298,7 @@ CREATE TABLE clients (
   created_at timestamptz DEFAULT now()
 );
 
--- Contrats / abonnements
+-- Table contrats
 CREATE TABLE contrats (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id uuid REFERENCES clients(id) ON DELETE CASCADE,
@@ -437,746 +314,605 @@ CREATE TABLE contrats (
   created_at timestamptz DEFAULT now()
 );
 
--- Index utiles
 CREATE INDEX ON contrats(client_id);
-CREATE INDEX ON contrats(echeance_contractuelle);
-CREATE INDEX ON contrats(produit);</pre>
-    <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="copySQL()">📋 Copier le SQL</button>
+CREATE INDEX ON contrats(echeance_contractuelle);</div>
+      <button class="btn btn-grey btn-sm" onclick="copySql()">Copier le SQL</button>
+    </div>
   </div>
-</div>
-
 </main>
 
-<!-- ── MODAL CONTRAT ── -->
-<div class="modal-overlay" id="modal-overlay">
+<!-- MODAL CONTRAT -->
+<div class="overlay" id="ov-contract">
   <div class="modal">
-    <div class="modal-head">
-      <h3 id="modal-title">Ajouter un contrat</h3>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-hd">
+      <h3 id="mc-title">Ajouter un contrat</h3>
+      <button class="modal-close" onclick="closeContractModal()">x</button>
     </div>
     <div class="modal-body">
-      <input type="hidden" id="modal-id">
+      <input type="hidden" id="mc-id">
       <div class="form-group">
         <label class="form-label">Client *</label>
-        <select class="form-input" id="m-client"></select>
+        <select class="form-input" id="mc-client"></select>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Produit *</label>
-          <select class="form-input" id="m-produit">
-            <option>Office 365</option><option>Domaines</option>
-            <option>ESET MSP</option><option>Sauvegarde</option>
-            <option>Licences</option><option>Contrats EPP</option>
+          <select class="form-input" id="mc-produit">
+            <option>Office 365</option><option>Domaines</option><option>ESET MSP</option>
+            <option>Sauvegarde</option><option>Licences</option><option>Contrats EPP</option>
             <option>Maintenance Serveur</option><option>Licences VPN</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Périodicité *</label>
-          <select class="form-input" id="m-periodicite">
-            <option>Mensuel</option><option>Trimestriel</option>
-            <option>Semestriel</option><option selected>Annuel</option>
+          <label class="form-label">Periodicite *</label>
+          <select class="form-input" id="mc-periodicite">
+            <option>Mensuel</option><option>Trimestriel</option><option>Semestriel</option><option selected>Annuel</option>
           </select>
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Détail (offre, nb licences…)</label>
-        <input class="form-input" id="m-detail" placeholder="ex : M365 Business Basic – 3 licences">
+        <label class="form-label">Detail (offre, nb licences...)</label>
+        <input class="form-input" id="mc-detail" placeholder="ex: M365 Business Basic - 3 licences">
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Montant HT (€)</label>
-          <input class="form-input" type="number" step="0.01" id="m-montant" placeholder="0.00">
+          <label class="form-label">Montant HT (EUR)</label>
+          <input class="form-input" type="number" step="0.01" id="mc-montant" placeholder="0.00">
         </div>
         <div class="form-group">
-          <label class="form-label">Dernière facture émise</label>
-          <input class="form-input" type="date" id="m-dernfact">
+          <label class="form-label">Derniere facture emise</label>
+          <input class="form-input" type="date" id="mc-dernfact">
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Échéance contractuelle <span style="color:var(--g1)">★</span></label>
-        <input class="form-input" type="date" id="m-echeance">
-        <div style="font-size:.72rem;color:var(--ink3);margin-top:4px;">Date anniversaire réelle du contrat — le cycle de facturation est calé sur cette date</div>
+        <label class="form-label" style="color:#7AB319">Echeance contractuelle *</label>
+        <input class="form-input" type="date" id="mc-echeance">
+        <div class="form-hint">Date anniversaire reelle du contrat — le cycle est cale sur cette date</div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">N° Facture EBP</label>
-          <input class="form-input" id="m-facturebp" placeholder="FA-2025-001">
+          <input class="form-input" id="mc-ebp" placeholder="FA-2025-001">
         </div>
         <div class="form-group">
           <label class="form-label">Notes</label>
-          <input class="form-input" id="m-notes" placeholder="">
+          <input class="form-input" id="mc-notes">
         </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
-      <button class="btn btn-danger btn-sm" id="btn-delete" style="display:none" onclick="deleteContract()">Supprimer</button>
-      <button class="btn btn-primary" onclick="saveContract()">Enregistrer</button>
+    <div class="modal-ft">
+      <button class="btn btn-red btn-sm" id="mc-del" style="display:none;margin-right:auto" onclick="deleteContract()">Supprimer</button>
+      <button class="btn btn-grey" onclick="closeContractModal()">Annuler</button>
+      <button class="btn btn-green" onclick="saveContract()">Enregistrer</button>
     </div>
   </div>
 </div>
 
 <!-- MODAL CLIENT -->
-<div class="modal-overlay" id="modal-client-overlay">
+<div class="overlay" id="ov-client">
   <div class="modal">
-    <div class="modal-head">
-      <h3 id="modal-client-title">Nouveau client</h3>
-      <button class="modal-close" onclick="closeClientModal()">✕</button>
+    <div class="modal-hd">
+      <h3 id="mcl-title">Nouveau client</h3>
+      <button class="modal-close" onclick="closeClientModal()">x</button>
     </div>
     <div class="modal-body">
-      <input type="hidden" id="mc-id">
+      <input type="hidden" id="mcl-id">
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Nom / Entreprise *</label>
-          <input class="form-input" id="mc-nom">
+          <input class="form-input" id="mcl-nom">
         </div>
         <div class="form-group">
           <label class="form-label">Type</label>
-          <select class="form-input" id="mc-type">
+          <select class="form-input" id="mcl-type">
             <option>TPE</option><option>Artisan</option><option>Professionnel</option>
-            <option>Collectivité</option><option>Association</option><option>Doctolib</option><option>Particulier</option>
+            <option>Collectivite</option><option>Association</option><option>Doctolib</option><option>Particulier</option>
           </select>
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Contact</label><input class="form-input" id="mc-contact"></div>
-        <div class="form-group"><label class="form-label">Téléphone</label><input class="form-input" id="mc-tel"></div>
+        <div class="form-group"><label class="form-label">Contact</label><input class="form-input" id="mcl-contact"></div>
+        <div class="form-group"><label class="form-label">Telephone</label><input class="form-input" id="mcl-tel"></div>
       </div>
-      <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="mc-email"></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="mcl-email"></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Adresse</label><input class="form-input" id="mc-adresse"></div>
-        <div class="form-group"><label class="form-label">Département</label><input class="form-input" id="mc-dept" placeholder="49"></div>
+        <div class="form-group"><label class="form-label">Adresse</label><input class="form-input" id="mcl-adresse"></div>
+        <div class="form-group"><label class="form-label">Departement</label><input class="form-input" id="mcl-dept" placeholder="49"></div>
       </div>
-      <div class="form-group"><label class="form-label">Notes</label><input class="form-input" id="mc-notes"></div>
+      <div class="form-group"><label class="form-label">Notes</label><input class="form-input" id="mcl-notes"></div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeClientModal()">Annuler</button>
-      <button class="btn btn-primary" onclick="saveClient()">Enregistrer</button>
+    <div class="modal-ft">
+      <button class="btn btn-grey" onclick="closeClientModal()">Annuler</button>
+      <button class="btn btn-green" onclick="saveClient()">Enregistrer</button>
     </div>
   </div>
 </div>
 
-<div class="toast-wrap" id="toast-wrap"></div>
-<div class="loading-overlay" id="loading" style="display:none;pointer-events:none;"><div class="spinner"></div></div>
+<div class="toasts" id="toasts"></div>
 
 <script>
-// ══════════════════════════════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════════════════════════════
-let supabase = null;
-let contracts = [];
-let clients   = [];
-let demoMode  = false;
-let activeFilter = null;
-let selectedMonth = new Date().getMonth(); // 0-based
-let selectedYear  = new Date().getFullYear();
+var sb = null;
+var demo = false;
+var clients = [];
+var contracts = [];
+var activeFilter = null;
+var selMonth = new Date().getMonth();
+var selYear = new Date().getFullYear();
 
-const PRODUCTS = [
-  { key: 'Office 365',          icon: '☁️' },
-  { key: 'Domaines',            icon: '🌐' },
-  { key: 'ESET MSP',            icon: '🛡️' },
-  { key: 'Sauvegarde',          icon: '💾' },
-  { key: 'Licences',            icon: '📦' },
-  { key: 'Contrats EPP',        icon: '📋' },
-  { key: 'Maintenance Serveur', icon: '🖥️' },
-  { key: 'Licences VPN',        icon: '🔐' },
-];
+var MONTHS = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
+var MONTHS_S = ['Jan','Fev','Mar','Avr','Mai','Jun','Jul','Aou','Sep','Oct','Nov','Dec'];
+var PERIOD_DAYS = {Mensuel:30,Trimestriel:91,Semestriel:182,Annuel:365};
+var PRODUCTS = ['Office 365','Domaines','ESET MSP','Sauvegarde','Licences','Contrats EPP','Maintenance Serveur','Licences VPN'];
 
-const PERIOD_DAYS = { Mensuel: 30, Trimestriel: 91, Semestriel: 182, Annuel: 365 };
-
-const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
-                   'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-const MONTHS_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
-
-// ══════════════════════════════════════════════════════════════════════════
-// HELPERS
-// ══════════════════════════════════════════════════════════════════════════
-function nextDate(echeance, periodicite) {
+function nextDate(echeance, per) {
   if (!echeance) return null;
-  const d = new Date(echeance);
-  const days = PERIOD_DAYS[periodicite] || 365;
-  d.setDate(d.getDate() + days);
+  var d = new Date(echeance);
+  d.setDate(d.getDate() + (PERIOD_DAYS[per] || 365));
   return d;
 }
-
 function daysLeft(d) {
   if (!d) return null;
-  const now = new Date(); now.setHours(0,0,0,0);
-  return Math.round((new Date(d) - now) / 86400000);
+  var now = new Date(); now.setHours(0,0,0,0);
+  return Math.round((d - now) / 86400000);
 }
-
-function status(days) {
-  if (days === null) return { label: '—', cls: '' };
-  if (days < 0)  return { label: '🔴 En retard',    cls: 'red' };
-  if (days <= 30) return { label: '🟠 À facturer',   cls: 'orange' };
-  return              { label: '🟢 OK',              cls: 'green' };
+function statusOf(days) {
+  if (days === null) return {lbl:'—',cls:''};
+  if (days < 0) return {lbl:'En retard',cls:'badge-red'};
+  if (days <= 30) return {lbl:'A facturer',cls:'badge-orange'};
+  return {lbl:'OK',cls:'badge-green'};
 }
-
 function fmtDate(d) {
   if (!d) return '—';
-  const dt = new Date(d);
-  return dt.toLocaleDateString('fr-FR');
+  return new Date(d).toLocaleDateString('fr-FR');
 }
-
 function fmtEur(n) {
-  if (n === null || n === undefined) return '—';
-  return Number(n).toLocaleString('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:2 });
+  if (n == null) return '—';
+  return Number(n).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' EUR';
 }
-
 function annualCA(c) {
-  const m = Number(c.montant_ht) || 0;
-  const f = { Mensuel:12, Trimestriel:4, Semestriel:2, Annuel:1 }[c.periodicite] || 1;
+  var m = Number(c.montant_ht) || 0;
+  var f = {Mensuel:12,Trimestriel:4,Semestriel:2,Annuel:1}[c.periodicite] || 1;
   return m * f;
 }
-
-function toast(msg, type='ok') {
-  const t = document.createElement('div');
-  t.className = `toast ${type}`; t.textContent = msg;
-  document.getElementById('toast-wrap').appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+function clientName(id) {
+  var c = clients.find(function(x){return x.id===id;});
+  return c ? c.nom : '—';
+}
+function enrich() {
+  return contracts.map(function(c) {
+    var nd = nextDate(c.echeance_contractuelle, c.periodicite);
+    var dl = daysLeft(nd);
+    return Object.assign({},c,{_next:nd,_days:dl,_st:statusOf(dl)});
+  });
 }
 
-function clientName(cid) {
-  const c = clients.find(c => c.id === cid);
-  return c ? c.nom : cid;
+// TOAST
+function toast(msg, type) {
+  var t = document.createElement('div');
+  t.className = 'toast ' + (type||'ok');
+  t.textContent = msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(function(){t.remove();}, 3000);
 }
 
-function setConn(ok) {
-  const dot = document.getElementById('conn-dot');
-  dot.style.background = ok ? 'var(--green)' : 'var(--red)';
-  dot.title = ok ? 'Connecté à Supabase' : 'Non connecté';
+// NAVIGATION
+var PAGE_LABELS = {dashboard:'Vue globale',monthly:'Par mois',contracts:'Contrats',clients:'Clients',config:'Configuration'};
+
+function goto(name) {
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  var page = document.getElementById('p-' + name);
+  if (page) page.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(function(b){
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'"+name+"'") !== -1) b.classList.add('active');
+  });
+  document.getElementById('page-title').textContent = PAGE_LABELS[name] || name;
+  if (name === 'contracts') renderContracts();
+  if (name === 'clients') renderClients();
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-// SUPABASE CONFIG
-// ══════════════════════════════════════════════════════════════════════════
-async function saveConfig() {
-  const url = document.getElementById('cfg-url').value.trim();
-  const key = document.getElementById('cfg-key').value.trim();
-  if (!url || !key) { showCfgStatus('Veuillez remplir les deux champs.', 'err'); return; }
-
+// SUPABASE
+function saveConfig() {
+  var url = document.getElementById('cfg-url').value.trim();
+  var key = document.getElementById('cfg-key').value.trim();
+  if (!url || !key) { showCfg('Remplissez les deux champs.','err'); return; }
   localStorage.setItem('sb_url', url);
   localStorage.setItem('sb_key', key);
-  await connectSupabase(url, key);
+  connectSB(url, key);
 }
-
-async function connectSupabase(url, key) {
+function connectSB(url, key) {
   try {
-    supabase = window.supabase.createClient(url, key);
-    const { error } = await supabase.from('clients').select('id').limit(1);
-    if (error) throw error;
-    setConn(true);
-    showCfgStatus('✅ Connexion réussie ! Tables trouvées.', 'ok');
-    demoMode = false;
-    await loadAll();
-  } catch(e) {
-    setConn(false);
-    showCfgStatus('❌ Erreur : ' + e.message, 'err');
-  }
+    sb = window.supabase.createClient(url, key);
+    sb.from('clients').select('id').limit(1).then(function(res) {
+      if (res.error) { showCfg('Erreur: ' + res.error.message, 'err'); setDot(false); }
+      else { showCfg('Connexion reussie !', 'ok'); setDot(true); demo = false; loadAll(); }
+    });
+  } catch(e) { showCfg('Erreur: ' + e.message, 'err'); }
+}
+function showCfg(msg, type) {
+  var el = document.getElementById('cfg-msg');
+  el.style.display = 'block';
+  el.className = type === 'ok' ? 'cfg-ok' : 'cfg-err';
+  el.textContent = msg;
+}
+function setDot(ok) {
+  var d = document.getElementById('conn-dot');
+  d.className = 'conn-dot ' + (ok ? 'ok' : '');
+  d.title = ok ? 'Connecte Supabase' : 'Non connecte';
+}
+function copySql() {
+  var sql = document.querySelector('.sql-block').textContent;
+  navigator.clipboard.writeText(sql).then(function(){toast('SQL copie !');});
 }
 
-function showCfgStatus(msg, cls) {
-  const el = document.getElementById('cfg-status');
-  el.style.display = 'block'; el.className = `config-status ${cls}`; el.textContent = msg;
-}
-
-function copySQL() {
-  const sql = document.querySelector('pre').textContent;
-  navigator.clipboard.writeText(sql).then(() => toast('SQL copié !'));
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// DEMO DATA
-// ══════════════════════════════════════════════════════════════════════════
-function initDemo() {
-  demoMode = true;
-  setConn(false);
-  document.getElementById('conn-dot').style.background = 'var(--orange)';
-  document.getElementById('conn-dot').title = 'Mode démo';
-
-  const today = new Date();
-  const d = (y,m,day) => new Date(y,m-1,day).toISOString().split('T')[0];
-  const past = (days) => { const x = new Date(); x.setDate(x.getDate()-days); return x.toISOString().split('T')[0]; };
-  const future = (days) => { const x = new Date(); x.setDate(x.getDate()+days); return x.toISOString().split('T')[0]; };
-
-  clients = [
-    { id:'c1', nom:'Cabinet Moreau',            type:'Professionnel', contact:'Marie Moreau',    email:'compta@moreau.fr',             telephone:'06 12 34 56 78', departement:'49' },
-    { id:'c2', nom:'Dr. Lefebvre',               type:'Doctolib',      contact:'Paul Lefebvre',   email:'dr.lefebvre@gmail.com',        telephone:'06 98 76 54 32', departement:'49' },
-    { id:'c3', nom:'Mairie Treize-Septiers',     type:'Collectivité',  contact:'M. Girard',       email:'mairie@treizeseptiers.fr',     telephone:'02 51 66 00 00', departement:'85' },
-    { id:'c4', nom:'Boulangerie Martin',         type:'Artisan',       contact:'Jean Martin',     email:'boulangerie.martin@orange.fr', telephone:'06 23 45 67 89', departement:'85' },
-    { id:'c5', nom:'SARL Dupont Peinture',       type:'TPE',           contact:'Marc Dupont',     email:'m.dupont@orange.fr',           telephone:'06 34 56 78 90', departement:'49' },
-    { id:'c6', nom:'Association Sportive Cholet',type:'Association',   contact:'Pierre Brun',     email:'as-cholet@wanadoo.fr',         telephone:'06 45 67 89 01', departement:'49' },
-    { id:'c7', nom:'Garage Renault Pouzauges',   type:'TPE',           contact:'Sophie Renault',  email:'contact@garage-renault.fr',    telephone:'02 51 57 00 00', departement:'85' },
-    { id:'c8', nom:'EURL Bâti79',               type:'TPE',           contact:'Luc Bati',        email:'contact@bati79.fr',            telephone:'06 56 78 90 12', departement:'79' },
-  ];
-
-  contracts = [
-    { id:'k1',  client_id:'c1', produit:'Office 365',          detail:'M365 Business Basic – 3 lic.',  periodicite:'Annuel',      montant_ht:180,   derniere_facture:d(2024,6,15),  echeance_contractuelle:d(2025,6,15),  facture_ebp:'FA-2024-031', actif:true },
-    { id:'k2',  client_id:'c2', produit:'Office 365',          detail:'M365 Business Standard – 1 lic.',periodicite:'Mensuel',    montant_ht:14.4,  derniere_facture:past(20),         echeance_contractuelle:future(10),    facture_ebp:'', actif:true },
-    { id:'k3',  client_id:'c3', produit:'Office 365',          detail:'M365 Business Basic – 5 lic.',  periodicite:'Annuel',      montant_ht:300,   derniere_facture:d(2025,1,10),  echeance_contractuelle:d(2026,1,10),  facture_ebp:'FA-2025-004', actif:true },
-    { id:'k4',  client_id:'c7', produit:'Office 365',          detail:'M365 Apps – 2 lic.',            periodicite:'Annuel',      montant_ht:198,   derniere_facture:d(2025,2,1),   echeance_contractuelle:d(2026,2,1),   facture_ebp:'FA-2025-009', actif:true },
-    { id:'k5',  client_id:'c4', produit:'Office 365',          detail:'M365 Business Basic – 1 lic.',  periodicite:'Annuel',      montant_ht:60,    derniere_facture:d(2024,12,1),  echeance_contractuelle:d(2025,12,1),  facture_ebp:'', actif:true },
-    { id:'k6',  client_id:'c1', produit:'Domaines',            detail:'moreau-avocats.fr',             periodicite:'Annuel',      montant_ht:12,    derniere_facture:d(2024,9,10),  echeance_contractuelle:past(90),      facture_ebp:'', actif:true },
-    { id:'k7',  client_id:'c5', produit:'Domaines',            detail:'dupont-peinture.fr',            periodicite:'Annuel',      montant_ht:15,    derniere_facture:d(2024,9,20),  echeance_contractuelle:past(270),     facture_ebp:'', actif:true },
-    { id:'k8',  client_id:'c7', produit:'ESET MSP',            detail:'ESET Endpoint – 5 postes',      periodicite:'Annuel',      montant_ht:95,    derniere_facture:d(2025,1,10),  echeance_contractuelle:d(2026,1,10),  facture_ebp:'FA-2025-003', actif:true },
-    { id:'k9',  client_id:'c1', produit:'ESET MSP',            detail:'ESET Endpoint Security – 3 p.', periodicite:'Annuel',      montant_ht:66,    derniere_facture:d(2024,11,20), echeance_contractuelle:past(210),     facture_ebp:'', actif:true },
-    { id:'k10', client_id:'c3', produit:'ESET MSP',            detail:'ESET Endpoint Security – 8 p.', periodicite:'Annuel',      montant_ht:176,   derniere_facture:d(2025,3,1),   echeance_contractuelle:d(2026,3,1),   facture_ebp:'FA-2025-011', actif:true },
-    { id:'k11', client_id:'c1', produit:'Sauvegarde',          detail:'Acronis Cloud – Serveur + 3 PC', periodicite:'Annuel',     montant_ht:360,   derniere_facture:d(2024,6,15),  echeance_contractuelle:past(5),       facture_ebp:'', actif:true },
-    { id:'k12', client_id:'c6', produit:'Sauvegarde',          detail:'Acronis Cloud – 100 Go',        periodicite:'Trimestriel', montant_ht:45,    derniere_facture:past(85),        echeance_contractuelle:past(10),      facture_ebp:'', actif:true },
-    { id:'k13', client_id:'c4', produit:'Contrats EPP',        detail:'Pack Essentiel Pro',            periodicite:'Annuel',      montant_ht:360,   derniere_facture:d(2024,12,1),  echeance_contractuelle:d(2025,12,1),  facture_ebp:'', actif:true },
-    { id:'k14', client_id:'c1', produit:'Contrats EPP',        detail:'Pack Business',                 periodicite:'Annuel',      montant_ht:720,   derniere_facture:d(2024,6,15),  echeance_contractuelle:past(5),       facture_ebp:'', actif:true },
-    { id:'k15', client_id:'c3', produit:'Maintenance Serveur', detail:'Dell PowerEdge T40',            periodicite:'Annuel',      montant_ht:480,   derniere_facture:d(2024,11,1),  echeance_contractuelle:past(230),     facture_ebp:'', actif:true },
-    { id:'k16', client_id:'c1', produit:'Maintenance Serveur', detail:'Synology + HP Gen10',           periodicite:'Annuel',      montant_ht:360,   derniere_facture:d(2024,6,15),  echeance_contractuelle:past(5),       facture_ebp:'', actif:true },
-    { id:'k17', client_id:'c8', produit:'Licences VPN',        detail:'OpenVPN – 2 utilisateurs',      periodicite:'Annuel',      montant_ht:60,    derniere_facture:d(2025,2,1),   echeance_contractuelle:d(2026,2,1),   facture_ebp:'FA-2025-008', actif:true },
-    { id:'k18', client_id:'c1', produit:'Licences VPN',        detail:'WireGuard – 3 utilisateurs',    periodicite:'Annuel',      montant_ht:90,    derniere_facture:d(2025,1,15),  echeance_contractuelle:d(2026,1,15),  facture_ebp:'FA-2025-005', actif:true },
-    { id:'k19', client_id:'c2', produit:'Domaines',            detail:'lefebvre-medecin.fr',           periodicite:'Annuel',      montant_ht:12,    derniere_facture:d(2025,3,1),   echeance_contractuelle:future(18),    facture_ebp:'', actif:true },
-    { id:'k20', client_id:'c8', produit:'ESET MSP',            detail:'ESET Endpoint – 4 postes',      periodicite:'Annuel',      montant_ht:76,    derniere_facture:d(2025,4,1),   echeance_contractuelle:d(2026,4,1),   facture_ebp:'FA-2025-015', actif:true },
-  ];
-
-  renderAll();
-  toast('Mode démo activé — données fictives', 'ok');
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// LOAD FROM SUPABASE
-// ══════════════════════════════════════════════════════════════════════════
-async function loadAll() {
-  document.getElementById('loading').classList.add('on');
-  try {
-    const [{ data: cl }, { data: co }] = await Promise.all([
-      supabase.from('clients').select('*').order('nom'),
-      supabase.from('contrats').select('*').eq('actif', true).order('echeance_contractuelle'),
-    ]);
-    clients   = cl || [];
-    contracts = co || [];
+// LOAD
+function loadAll() {
+  if (demo) { renderAll(); return; }
+  Promise.all([
+    sb.from('clients').select('*').order('nom'),
+    sb.from('contrats').select('*').eq('actif',true).order('echeance_contractuelle')
+  ]).then(function(results) {
+    clients = results[0].data || [];
+    contracts = results[1].data || [];
     renderAll();
-  } catch(e) { toast('Erreur chargement : ' + e.message, 'err'); }
-  document.getElementById('loading').classList.remove('on'); document.getElementById('loading').style.display='none';
+  }).catch(function(e){ toast('Erreur: ' + e.message, 'err'); });
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-// COMPUTED
-// ══════════════════════════════════════════════════════════════════════════
-function enriched() {
-  return contracts.map(c => {
-    const next = nextDate(c.echeance_contractuelle, c.periodicite);
-    const days = daysLeft(next);
-    const st   = status(days);
-    return { ...c, _next: next, _days: days, _status: st };
-  });
-}
-
-function contractsForMonth(year, month) {
-  return enriched().filter(c => {
-    if (!c._next) return false;
-    return c._next.getFullYear() === year && c._next.getMonth() === month;
-  });
-}
-
-// ══════════════════════════════════════════════════════════════════════════
 // RENDER ALL
-// ══════════════════════════════════════════════════════════════════════════
 function renderAll() {
-  updateTopbarMeta();
+  updateMeta();
   renderDashboard();
-  renderMonthly();
-  renderContracts();
-  renderClients();
-  populateClientSelect();
-  populateProductFilter();
+  renderCalendar();
+  renderMonthTable();
+  fillClientSelect();
+}
+function updateMeta() {
+  var now = new Date();
+  document.getElementById('page-meta').textContent =
+    now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) +
+    (demo ? ' — MODE DEMO' : '');
 }
 
-function updateTopbarMeta() {
-  const now = new Date();
-  document.getElementById('topbar-meta').textContent =
-    now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) +
-    (demoMode ? ' — MODE DÉMO' : '');
-}
-
-// ══════════════════════════════════════════════════════════════════════════
 // DASHBOARD
-// ══════════════════════════════════════════════════════════════════════════
 function renderDashboard() {
-  const data = enriched();
-  const total = data.length;
-  const late  = data.filter(c => c._days !== null && c._days < 0).length;
-  const soon  = data.filter(c => c._days !== null && c._days >= 0 && c._days <= 30).length;
-  const ca    = data.reduce((s, c) => s + annualCA(c), 0);
-
-  document.getElementById('k-total').textContent = total;
+  var data = enrich();
+  var late = data.filter(function(c){return c._days!==null&&c._days<0;}).length;
+  var soon = data.filter(function(c){return c._days!==null&&c._days>=0&&c._days<=30;}).length;
+  var ca   = data.reduce(function(s,c){return s+annualCA(c);},0);
+  document.getElementById('k-total').textContent = data.length;
   document.getElementById('k-late').textContent  = late;
-  document.getElementById('k-month').textContent = soon;
-  document.getElementById('k-ca').textContent    = fmtEur(ca);
+  document.getElementById('k-soon').textContent  = soon;
+  document.getElementById('k-ca').textContent    = Math.round(ca).toLocaleString('fr-FR') + ' EUR';
 
   // Product grid
-  const grid = document.getElementById('product-grid');
+  var grid = document.getElementById('prod-grid');
   grid.innerHTML = '';
-  PRODUCTS.forEach(p => {
-    const items = data.filter(c => c.produit === p.key);
+  PRODUCTS.forEach(function(p) {
+    var items = data.filter(function(c){return c.produit===p;});
     if (!items.length) return;
-    const div = document.createElement('div');
-    div.className = 'product-card' + (activeFilter === p.key ? ' selected' : '');
-    div.innerHTML = `<div class="product-icon">${p.icon}</div>
-      <div class="product-name">${p.key}</div>
-      <div class="product-count">${items.length}</div>
-      <div class="product-label">contrat${items.length>1?'s':''} actif${items.length>1?'s':''}</div>`;
-    div.onclick = () => toggleFilter(p.key);
+    var div = document.createElement('div');
+    div.className = 'prod-card' + (activeFilter===p?' sel':'');
+    div.innerHTML = '<div class="prod-name">' + p + '</div>' +
+      '<div class="prod-count">' + items.length + '</div>' +
+      '<div class="prod-lbl">contrat' + (items.length>1?'s':'') + '</div>';
+    div.onclick = function(){ toggleFilter(p); };
     grid.appendChild(div);
   });
 
   // Alert table
-  const filtered = activeFilter ? data.filter(c => c.produit === activeFilter) : data;
-  const alerts   = filtered.filter(c => c._days !== null && c._days <= 30).sort((a,b) => a._days - b._days);
-  document.getElementById('alert-title').textContent =
-    activeFilter ? `Contrats — ${activeFilter} (${filtered.length})` : `Alertes (${alerts.length} à traiter)`;
-
-  const tbody = document.getElementById('alert-tbody');
-  const rows  = activeFilter ? filtered.sort((a,b) => (a._days||999)-(b._days||999)) : alerts;
-  tbody.innerHTML = rows.length ? rows.map(c => contractRow(c, true)).join('') : emptyRow(9);
+  var filtered = activeFilter ? data.filter(function(c){return c.produit===activeFilter;}) : data;
+  var rows = activeFilter ? filtered.sort(function(a,b){return (a._days||999)-(b._days||999);})
+                          : filtered.filter(function(c){return c._days!==null&&c._days<=30;}).sort(function(a,b){return a._days-b._days;});
+  document.getElementById('alert-title').textContent = activeFilter
+    ? activeFilter + ' (' + filtered.length + ' contrats)'
+    : 'Alertes (' + rows.length + ' a traiter)';
+  document.getElementById('alert-tbody').innerHTML = rows.length
+    ? rows.map(function(c){return contractRow(c,8);}).join('')
+    : '<tr><td colspan="9"><div class="empty">Aucune alerte pour le moment</div></td></tr>';
 }
 
-function toggleFilter(key) {
-  activeFilter = activeFilter === key ? null : key;
-  document.getElementById('clear-filter').style.display = activeFilter ? '' : 'none';
+function toggleFilter(p) {
+  activeFilter = activeFilter===p ? null : p;
+  document.getElementById('btn-clear').style.display = activeFilter ? '' : 'none';
   renderDashboard();
 }
-function clearFilter() { activeFilter = null; renderDashboard(); document.getElementById('clear-filter').style.display='none'; }
+function clearFilter() { activeFilter=null; renderDashboard(); document.getElementById('btn-clear').style.display='none'; }
 
-function contractRow(c, showDelete=false) {
-  const st = c._status;
-  return `<tr>
-    <td><span class="client-name">${clientName(c.client_id)}</span></td>
-    <td><span class="service-tag">${c.produit}</span></td>
-    <td>${c.periodicite}</td>
-    <td class="amount">${fmtEur(c.montant_ht)}</td>
-    <td>${fmtDate(c.echeance_contractuelle)}</td>
-    <td>${c._next ? fmtDate(c._next) : '—'}</td>
-    <td><span class="badge ${st.cls}">${st.label}</span></td>
-    <td class="${c.facture_ebp?'fact-done':'fact-ref'}">${c.facture_ebp || '—'}</td>
-    <td><button class="btn btn-ghost btn-sm" onclick="openModal('edit','${c.id}')">✏️</button></td>
-  </tr>`;
+function contractRow(c, cols) {
+  var st = c._st;
+  return '<tr>' +
+    '<td class="td-bold">' + clientName(c.client_id) + '</td>' +
+    '<td><span class="badge badge-grey">' + c.produit + '</span></td>' +
+    '<td>' + c.periodicite + '</td>' +
+    '<td class="td-mono">' + fmtEur(c.montant_ht) + '</td>' +
+    '<td>' + fmtDate(c.echeance_contractuelle) + '</td>' +
+    '<td>' + (c._next ? fmtDate(c._next) : '—') + '</td>' +
+    '<td><span class="badge ' + st.cls + '">' + st.lbl + '</span></td>' +
+    '<td class="td-grey">' + (c.facture_ebp||'—') + '</td>' +
+    '<td><button class="btn btn-grey btn-sm" onclick="openContractModal(\'' + c.id + '\')">Modifier</button></td>' +
+    '</tr>';
 }
 
-function emptyRow(cols) {
-  return `<tr><td colspan="${cols}"><div class="empty"><div class="empty-icon">🎉</div><p>Aucune alerte pour le moment.</p></div></td></tr>`;
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// MONTHLY VIEW
-// ══════════════════════════════════════════════════════════════════════════
-function renderMonthly() {
-  renderCalStrip();
-  renderMonthTable();
-}
-
-function renderCalStrip() {
-  const strip = document.getElementById('cal-strip');
-  strip.innerHTML = '';
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const m = (now.getMonth() + i) % 12;
-    const y = now.getFullYear() + Math.floor((now.getMonth() + i) / 12);
-    const items = contractsForMonth(y, m);
-    const late  = items.filter(c => c._days < 0).length;
-    const total = items.length;
-    const amount = items.reduce((s,c) => s + Number(c.montant_ht||0), 0);
-    const isSel = (m === selectedMonth && y === selectedYear);
-
-    const div = document.createElement('div');
-    div.className = 'cal-month' + (late>0?' has-late':total>0?' has-items':'') + (isSel?' selected':'');
-    div.innerHTML = `<div class="cal-mname">${MONTHS_SHORT[m]}</div>
-      <div class="cal-mcount">${total||'—'}</div>
-      <div class="cal-mamount">${total?fmtEur(amount):''}</div>`;
-    div.onclick = () => { selectedMonth = m; selectedYear = y; renderMonthly(); };
-    strip.appendChild(div);
+// CALENDAR
+function renderCalendar() {
+  var grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  var now = new Date();
+  for (var i=0; i<12; i++) {
+    var m = (now.getMonth()+i)%12;
+    var y = now.getFullYear()+Math.floor((now.getMonth()+i)/12);
+    var items = contractsForMonth(y,m);
+    var late  = items.filter(function(c){return c._days<0;}).length;
+    var amt   = items.reduce(function(s,c){return s+Number(c.montant_ht||0);},0);
+    var isSel = m===selMonth && y===selYear;
+    var cls   = 'cal-cell' + (isSel?' sel':late>0?' has-late':items.length>0?' has-soon':'');
+    var div   = document.createElement('div');
+    div.className = cls;
+    div.innerHTML = '<div class="cal-mn">' + MONTHS_S[m] + '</div>' +
+      '<div class="cal-ct">' + (items.length||'—') + '</div>' +
+      '<div class="cal-amt">' + (items.length?Math.round(amt).toLocaleString('fr-FR')+' EUR':'') + '</div>';
+    (function(mm,yy){ div.onclick = function(){ selMonth=mm; selYear=yy; renderCalendar(); renderMonthTable(); }; })(m,y);
+    grid.appendChild(div);
   }
 }
-
-function renderMonthTable() {
-  const items = contractsForMonth(selectedYear, selectedMonth);
-  const total = items.reduce((s,c) => s + Number(c.montant_ht||0), 0);
-  document.getElementById('month-view-title').textContent = `${MONTHS_FR[selectedMonth]} ${selectedYear}`;
-  document.getElementById('month-view-sub').textContent = `${items.length} contrat${items.length>1?'s':''} — ${fmtEur(total)} HT à facturer`;
-  document.getElementById('month-label-nav').textContent = `${MONTHS_FR[selectedMonth]} ${selectedYear}`;
-
-  const tbody = document.getElementById('month-tbody');
-  tbody.innerHTML = items.length ? items.map(c => `<tr>
-    <td><span class="client-name">${clientName(c.client_id)}</span></td>
-    <td><span class="service-tag">${c.produit}</span></td>
-    <td style="color:var(--ink3);font-size:.8rem">${c.detail||'—'}</td>
-    <td class="amount">${fmtEur(c.montant_ht)}</td>
-    <td>${c._next ? fmtDate(c._next) : '—'}</td>
-    <td><span class="badge ${c._status.cls}">${c._status.label}</span></td>
-    <td class="${c.facture_ebp?'fact-done':'fact-ref'}">${c.facture_ebp||'—'}</td>
-    <td><button class="btn btn-ghost btn-sm" onclick="openModal('edit','${c.id}')">✏️</button></td>
-  </tr>`).join('') : emptyRow(8);
-}
-
-function shiftMonth(dir) {
-  let m = selectedMonth + dir;
-  let y = selectedYear;
-  if (m < 0)  { m = 11; y--; }
-  if (m > 11) { m = 0;  y++; }
-  selectedMonth = m; selectedYear = y;
-  renderMonthly();
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// CONTRACTS PAGE
-// ══════════════════════════════════════════════════════════════════════════
-function renderContracts() {
-  const search  = (document.getElementById('search-contracts')?.value||'').toLowerCase();
-  const product = document.getElementById('filter-product')?.value||'';
-  const data    = enriched().filter(c => {
-    const name = clientName(c.client_id).toLowerCase();
-    return (!search || name.includes(search) || (c.produit||'').toLowerCase().includes(search) || (c.detail||'').toLowerCase().includes(search))
-      && (!product || c.produit === product);
-  }).sort((a,b)=>(a._days||999)-(b._days||999));
-
-  const tbody = document.getElementById('contracts-tbody');
-  tbody.innerHTML = data.length ? data.map(c => `<tr>
-    <td><span class="client-name">${clientName(c.client_id)}</span></td>
-    <td><span class="service-tag">${c.produit}</span></td>
-    <td style="color:var(--ink3);font-size:.8rem;">${c.detail||'—'}</td>
-    <td>${c.periodicite}</td>
-    <td class="amount">${fmtEur(c.montant_ht)}</td>
-    <td>${fmtDate(c.derniere_facture)}</td>
-    <td>${fmtDate(c.echeance_contractuelle)}</td>
-    <td>${c._next?fmtDate(c._next):'—'}</td>
-    <td><span class="badge ${c._status.cls}">${c._status.label}</span></td>
-    <td class="${c.facture_ebp?'fact-done':'fact-ref'}">${c.facture_ebp||'—'}</td>
-    <td><button class="btn btn-ghost btn-sm" onclick="openModal('edit','${c.id}')">✏️</button></td>
-  </tr>`).join('') : emptyRow(11);
-}
-
-function populateProductFilter() {
-  const sel = document.getElementById('filter-product');
-  if (!sel) return;
-  const current = sel.value;
-  sel.innerHTML = '<option value="">Tous les produits</option>' +
-    PRODUCTS.map(p => `<option ${p.key===current?'selected':''}>${p.key}</option>`).join('');
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// CLIENTS PAGE
-// ══════════════════════════════════════════════════════════════════════════
-function renderClients() {
-  const tbody = document.getElementById('clients-tbody');
-  tbody.innerHTML = clients.length ? clients.map(cl => {
-    const nb = contracts.filter(c => c.client_id === cl.id && c.actif).length;
-    return `<tr>
-      <td><span class="client-name">${cl.nom}</span></td>
-      <td><span class="badge green" style="font-size:.68rem;">${cl.type||'—'}</span></td>
-      <td>${cl.contact||'—'}</td>
-      <td style="font-size:.8rem;">${cl.email||'—'}</td>
-      <td style="font-size:.8rem;">${cl.telephone||'—'}</td>
-      <td>${cl.departement||'—'}</td>
-      <td><span class="badge blue" style="background:var(--blue-bg);color:var(--blue)">${nb} contrat${nb>1?'s':''}</span></td>
-      <td><button class="btn btn-ghost btn-sm" onclick="openClientModal('${cl.id}')">✏️</button></td>
-    </tr>`;
-  }).join('') : emptyRow(8);
-}
-
-function populateClientSelect() {
-  const sel = document.getElementById('m-client');
-  sel.innerHTML = clients.map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// MODAL CONTRAT
-// ══════════════════════════════════════════════════════════════════════════
-function openModal(mode, id=null) {
-  const overlay = document.getElementById('modal-overlay');
-  const btnDel  = document.getElementById('btn-delete');
-  populateClientSelect();
-
-  if (mode === 'add' || !id) {
-    document.getElementById('modal-title').textContent = 'Ajouter un contrat';
-    document.getElementById('modal-id').value = '';
-    btnDel.style.display = 'none';
-    ['m-client','m-produit','m-periodicite','m-detail','m-montant','m-dernfact','m-echeance','m-facturebp','m-notes']
-      .forEach(f => { const el=document.getElementById(f); if(el) el.value=''; });
-    document.getElementById('m-periodicite').value = 'Annuel';
-  } else {
-    const c = contracts.find(x => x.id === id);
-    if (!c) return;
-    document.getElementById('modal-title').textContent = 'Modifier le contrat';
-    document.getElementById('modal-id').value = id;
-    btnDel.style.display = '';
-    document.getElementById('m-client').value     = c.client_id;
-    document.getElementById('m-produit').value    = c.produit;
-    document.getElementById('m-periodicite').value= c.periodicite;
-    document.getElementById('m-detail').value     = c.detail||'';
-    document.getElementById('m-montant').value    = c.montant_ht||'';
-    document.getElementById('m-dernfact').value   = c.derniere_facture||'';
-    document.getElementById('m-echeance').value   = c.echeance_contractuelle||'';
-    document.getElementById('m-facturebp').value  = c.facture_ebp||'';
-    document.getElementById('m-notes').value      = c.notes||'';
-  }
-  overlay.classList.add('open');
-}
-
-function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
-
-async function saveContract() {
-  const id       = document.getElementById('modal-id').value;
-  const payload  = {
-    client_id:               document.getElementById('m-client').value,
-    produit:                 document.getElementById('m-produit').value,
-    periodicite:             document.getElementById('m-periodicite').value,
-    detail:                  document.getElementById('m-detail').value,
-    montant_ht:              parseFloat(document.getElementById('m-montant').value)||null,
-    derniere_facture:        document.getElementById('m-dernfact').value||null,
-    echeance_contractuelle:  document.getElementById('m-echeance').value||null,
-    facture_ebp:             document.getElementById('m-facturebp').value,
-    notes:                   document.getElementById('m-notes').value,
-    actif: true,
-  };
-
-  if (!payload.client_id || !payload.produit) { toast('Client et produit obligatoires', 'err'); return; }
-
-  if (demoMode) {
-    if (id) {
-      const idx = contracts.findIndex(c => c.id === id);
-      if (idx >= 0) contracts[idx] = { ...contracts[idx], ...payload };
-    } else {
-      contracts.push({ id: 'k' + Date.now(), ...payload });
-    }
-    closeModal(); renderAll(); toast('Contrat enregistré ✓');
-    return;
-  }
-
-  try {
-    if (id) {
-      await supabase.from('contrats').update(payload).eq('id', id);
-    } else {
-      await supabase.from('contrats').insert(payload);
-    }
-    closeModal(); await loadAll(); toast('Contrat enregistré ✓');
-  } catch(e) { toast('Erreur : ' + e.message, 'err'); }
-}
-
-async function deleteContract() {
-  const id = document.getElementById('modal-id').value;
-  if (!id || !confirm('Supprimer ce contrat ?')) return;
-
-  if (demoMode) {
-    contracts = contracts.filter(c => c.id !== id);
-    closeModal(); renderAll(); toast('Contrat supprimé');
-    return;
-  }
-  try {
-    await supabase.from('contrats').update({ actif: false }).eq('id', id);
-    closeModal(); await loadAll(); toast('Contrat archivé');
-  } catch(e) { toast('Erreur : ' + e.message, 'err'); }
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// MODAL CLIENT
-// ══════════════════════════════════════════════════════════════════════════
-function openClientModal(id=null) {
-  const overlay = document.getElementById('modal-client-overlay');
-  if (id) {
-    const cl = clients.find(c => c.id === id);
-    if (!cl) return;
-    document.getElementById('modal-client-title').textContent = 'Modifier le client';
-    document.getElementById('mc-id').value      = id;
-    document.getElementById('mc-nom').value     = cl.nom||'';
-    document.getElementById('mc-type').value    = cl.type||'TPE';
-    document.getElementById('mc-contact').value = cl.contact||'';
-    document.getElementById('mc-tel').value     = cl.telephone||'';
-    document.getElementById('mc-email').value   = cl.email||'';
-    document.getElementById('mc-adresse').value = cl.adresse||'';
-    document.getElementById('mc-dept').value    = cl.departement||'';
-    document.getElementById('mc-notes').value   = cl.notes||'';
-  } else {
-    document.getElementById('modal-client-title').textContent = 'Nouveau client';
-    document.getElementById('mc-id').value = '';
-    ['mc-nom','mc-contact','mc-tel','mc-email','mc-adresse','mc-dept','mc-notes'].forEach(f => document.getElementById(f).value='');
-  }
-  overlay.classList.add('open');
-}
-function closeClientModal() { document.getElementById('modal-client-overlay').classList.remove('open'); }
-
-async function saveClient() {
-  const id = document.getElementById('mc-id').value;
-  const payload = {
-    nom:        document.getElementById('mc-nom').value,
-    type:       document.getElementById('mc-type').value,
-    contact:    document.getElementById('mc-contact').value,
-    telephone:  document.getElementById('mc-tel').value,
-    email:      document.getElementById('mc-email').value,
-    adresse:    document.getElementById('mc-adresse').value,
-    departement:document.getElementById('mc-dept').value,
-    notes:      document.getElementById('mc-notes').value,
-  };
-  if (!payload.nom) { toast('Le nom est obligatoire', 'err'); return; }
-
-  if (demoMode) {
-    if (id) { const i = clients.findIndex(c=>c.id===id); if(i>=0) clients[i]={...clients[i],...payload}; }
-    else clients.push({ id:'cl'+Date.now(), ...payload });
-    closeClientModal(); renderAll(); toast('Client enregistré ✓');
-    return;
-  }
-  try {
-    if (id) await supabase.from('clients').update(payload).eq('id', id);
-    else     await supabase.from('clients').insert(payload);
-    closeClientModal(); await loadAll(); toast('Client enregistré ✓');
-  } catch(e) { toast('Erreur : ' + e.message, 'err'); }
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// NAVIGATION
-// ══════════════════════════════════════════════════════════════════════════
-const PAGE_TITLES = {
-  dashboard: 'Vue globale', monthly: 'Par mois',
-  contracts: 'Contrats',   clients: 'Clients', config: 'Configuration'
-};
-
-function goToPage(page) {
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const navEl  = document.querySelector(`.nav-item[data-page="${page}"]`);
-  const pageEl = document.getElementById('page-' + page);
-  if (navEl)  navEl.classList.add('active');
-  if (pageEl) pageEl.classList.add('active');
-  if (PAGE_TITLES[page]) document.getElementById('topbar-title').textContent = PAGE_TITLES[page];
-  if (page === 'contracts') renderContracts();
-  if (page === 'clients')   renderClients();
-}
-
-document.querySelectorAll('.nav-item').forEach(item => {
-  item.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    goToPage(item.dataset.page);
+function contractsForMonth(y,m) {
+  return enrich().filter(function(c){
+    if (!c._next) return false;
+    return c._next.getFullYear()===y && c._next.getMonth()===m;
   });
-});
+}
+function renderMonthTable() {
+  var items = contractsForMonth(selYear,selMonth);
+  var total = items.reduce(function(s,c){return s+Number(c.montant_ht||0);},0);
+  document.getElementById('month-title').textContent = MONTHS[selMonth] + ' ' + selYear;
+  document.getElementById('month-sub').textContent   = items.length + ' contrat' + (items.length>1?'s':'') + ' — ' + fmtEur(total) + ' a facturer';
+  document.getElementById('month-nav-lbl').textContent = MONTHS[selMonth] + ' ' + selYear;
+  document.getElementById('month-tbody').innerHTML = items.length
+    ? items.map(function(c){
+        var st=c._st;
+        return '<tr><td class="td-bold">' + clientName(c.client_id) + '</td>' +
+          '<td><span class="badge badge-grey">' + c.produit + '</span></td>' +
+          '<td class="td-grey">' + (c.detail||'—') + '</td>' +
+          '<td class="td-mono">' + fmtEur(c.montant_ht) + '</td>' +
+          '<td>' + (c._next?fmtDate(c._next):'—') + '</td>' +
+          '<td><span class="badge '+st.cls+'">'+st.lbl+'</span></td>' +
+          '<td class="td-grey">'+(c.facture_ebp||'—')+'</td>' +
+          '<td><button class="btn btn-grey btn-sm" onclick="openContractModal(\''+c.id+'\')">Modifier</button></td></tr>';
+      }).join('')
+    : '<tr><td colspan="8"><div class="empty">Aucun contrat ce mois-ci</div></td></tr>';
+}
+function shiftMonth(dir) {
+  selMonth += dir;
+  if (selMonth<0){selMonth=11;selYear--;}
+  if (selMonth>11){selMonth=0;selYear++;}
+  renderCalendar(); renderMonthTable();
+}
 
-// Close modals on overlay click
-document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeModal(); });
-document.getElementById('modal-client-overlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeClientModal(); });
+// CONTRACTS PAGE
+function renderContracts() {
+  var search = (document.getElementById('search').value||'').toLowerCase();
+  var prod   = document.getElementById('filter-prod').value;
+  var data   = enrich().filter(function(c){
+    var n = clientName(c.client_id).toLowerCase();
+    return (!search||(n.includes(search)||(c.produit||'').toLowerCase().includes(search)||(c.detail||'').toLowerCase().includes(search)))
+        && (!prod||c.produit===prod);
+  }).sort(function(a,b){return (a._days||9999)-(b._days||9999);});
+  document.getElementById('contracts-tbody').innerHTML = data.length
+    ? data.map(function(c){
+        var st=c._st;
+        return '<tr><td class="td-bold">'+clientName(c.client_id)+'</td>' +
+          '<td><span class="badge badge-grey">'+c.produit+'</span></td>' +
+          '<td class="td-grey">'+(c.detail||'—')+'</td>' +
+          '<td>'+c.periodicite+'</td>' +
+          '<td class="td-mono">'+fmtEur(c.montant_ht)+'</td>' +
+          '<td>'+fmtDate(c.derniere_facture)+'</td>' +
+          '<td>'+fmtDate(c.echeance_contractuelle)+'</td>' +
+          '<td>'+(c._next?fmtDate(c._next):'—')+'</td>' +
+          '<td><span class="badge '+st.cls+'">'+st.lbl+'</span></td>' +
+          '<td class="td-grey">'+(c.facture_ebp||'—')+'</td>' +
+          '<td><button class="btn btn-grey btn-sm" onclick="openContractModal(\''+c.id+'\')">Modifier</button></td></tr>';
+      }).join('')
+    : '<tr><td colspan="11"><div class="empty">Aucun contrat</div></td></tr>';
+}
 
-// ══════════════════════════════════════════════════════════════════════════
+// CLIENTS PAGE
+function renderClients() {
+  document.getElementById('clients-tbody').innerHTML = clients.length
+    ? clients.map(function(cl){
+        var nb = contracts.filter(function(c){return c.client_id===cl.id&&c.actif;}).length;
+        return '<tr><td class="td-bold">'+cl.nom+'</td>' +
+          '<td><span class="badge badge-blue">'+(cl.type||'—')+'</span></td>' +
+          '<td>'+(cl.contact||'—')+'</td>' +
+          '<td class="td-grey">'+(cl.email||'—')+'</td>' +
+          '<td class="td-grey">'+(cl.telephone||'—')+'</td>' +
+          '<td>'+(cl.departement||'—')+'</td>' +
+          '<td><span class="badge badge-green">'+nb+' contrat'+(nb>1?'s':'')+'</span></td>' +
+          '<td><button class="btn btn-grey btn-sm" onclick="openClientModal(\''+cl.id+'\')">Modifier</button></td></tr>';
+      }).join('')
+    : '<tr><td colspan="8"><div class="empty">Aucun client</div></td></tr>';
+}
+
+// MODAL CONTRAT
+function fillClientSelect() {
+  document.getElementById('mc-client').innerHTML = clients.map(function(c){
+    return '<option value="'+c.id+'">'+c.nom+'</option>';
+  }).join('');
+}
+function openContractModal(id) {
+  var ov = document.getElementById('ov-contract');
+  var del = document.getElementById('mc-del');
+  fillClientSelect();
+  if (id) {
+    var c = contracts.find(function(x){return x.id===id;});
+    if (!c) return;
+    document.getElementById('mc-title').textContent = 'Modifier le contrat';
+    document.getElementById('mc-id').value          = id;
+    document.getElementById('mc-client').value      = c.client_id;
+    document.getElementById('mc-produit').value     = c.produit;
+    document.getElementById('mc-periodicite').value = c.periodicite;
+    document.getElementById('mc-detail').value      = c.detail||'';
+    document.getElementById('mc-montant').value     = c.montant_ht||'';
+    document.getElementById('mc-dernfact').value    = c.derniere_facture||'';
+    document.getElementById('mc-echeance').value    = c.echeance_contractuelle||'';
+    document.getElementById('mc-ebp').value         = c.facture_ebp||'';
+    document.getElementById('mc-notes').value       = c.notes||'';
+    del.style.display = '';
+  } else {
+    document.getElementById('mc-title').textContent = 'Ajouter un contrat';
+    document.getElementById('mc-id').value = '';
+    ['mc-detail','mc-montant','mc-dernfact','mc-echeance','mc-ebp','mc-notes'].forEach(function(f){document.getElementById(f).value='';});
+    document.getElementById('mc-periodicite').value = 'Annuel';
+    del.style.display = 'none';
+  }
+  ov.classList.add('open');
+}
+function closeContractModal() { document.getElementById('ov-contract').classList.remove('open'); }
+function saveContract() {
+  var id = document.getElementById('mc-id').value;
+  var payload = {
+    client_id: document.getElementById('mc-client').value,
+    produit:   document.getElementById('mc-produit').value,
+    periodicite: document.getElementById('mc-periodicite').value,
+    detail:    document.getElementById('mc-detail').value,
+    montant_ht: parseFloat(document.getElementById('mc-montant').value)||null,
+    derniere_facture: document.getElementById('mc-dernfact').value||null,
+    echeance_contractuelle: document.getElementById('mc-echeance').value||null,
+    facture_ebp: document.getElementById('mc-ebp').value,
+    notes: document.getElementById('mc-notes').value,
+    actif: true
+  };
+  if (!payload.client_id||!payload.produit){toast('Client et produit obligatoires','err');return;}
+  if (demo) {
+    if (id) { var i=contracts.findIndex(function(c){return c.id===id;}); if(i>=0) contracts[i]=Object.assign({},contracts[i],payload); }
+    else contracts.push(Object.assign({id:'k'+Date.now()},payload));
+    closeContractModal(); renderAll(); toast('Contrat enregistre');
+    return;
+  }
+  var op = id ? sb.from('contrats').update(payload).eq('id',id) : sb.from('contrats').insert(payload);
+  op.then(function(r){
+    if(r.error){toast('Erreur: '+r.error.message,'err');return;}
+    closeContractModal(); loadAll(); toast('Contrat enregistre');
+  });
+}
+function deleteContract() {
+  var id = document.getElementById('mc-id').value;
+  if (!id||!confirm('Supprimer ce contrat ?')) return;
+  if (demo) {
+    contracts = contracts.filter(function(c){return c.id!==id;});
+    closeContractModal(); renderAll(); toast('Contrat supprime');
+    return;
+  }
+  sb.from('contrats').update({actif:false}).eq('id',id).then(function(){
+    closeContractModal(); loadAll(); toast('Contrat archive');
+  });
+}
+
+// MODAL CLIENT
+function openClientModal(id) {
+  var ov = document.getElementById('ov-client');
+  if (id) {
+    var cl = clients.find(function(c){return c.id===id;});
+    if (!cl) return;
+    document.getElementById('mcl-title').textContent = 'Modifier le client';
+    document.getElementById('mcl-id').value      = id;
+    document.getElementById('mcl-nom').value     = cl.nom||'';
+    document.getElementById('mcl-type').value    = cl.type||'TPE';
+    document.getElementById('mcl-contact').value = cl.contact||'';
+    document.getElementById('mcl-tel').value     = cl.telephone||'';
+    document.getElementById('mcl-email').value   = cl.email||'';
+    document.getElementById('mcl-adresse').value = cl.adresse||'';
+    document.getElementById('mcl-dept').value    = cl.departement||'';
+    document.getElementById('mcl-notes').value   = cl.notes||'';
+  } else {
+    document.getElementById('mcl-title').textContent = 'Nouveau client';
+    document.getElementById('mcl-id').value = '';
+    ['mcl-nom','mcl-contact','mcl-tel','mcl-email','mcl-adresse','mcl-dept','mcl-notes'].forEach(function(f){document.getElementById(f).value='';});
+  }
+  ov.classList.add('open');
+}
+function closeClientModal() { document.getElementById('ov-client').classList.remove('open'); }
+function saveClient() {
+  var id = document.getElementById('mcl-id').value;
+  var payload = {
+    nom: document.getElementById('mcl-nom').value,
+    type: document.getElementById('mcl-type').value,
+    contact: document.getElementById('mcl-contact').value,
+    telephone: document.getElementById('mcl-tel').value,
+    email: document.getElementById('mcl-email').value,
+    adresse: document.getElementById('mcl-adresse').value,
+    departement: document.getElementById('mcl-dept').value,
+    notes: document.getElementById('mcl-notes').value
+  };
+  if (!payload.nom){toast('Le nom est obligatoire','err');return;}
+  if (demo) {
+    if (id){var i=clients.findIndex(function(c){return c.id===id;});if(i>=0)clients[i]=Object.assign({},clients[i],payload);}
+    else clients.push(Object.assign({id:'cl'+Date.now()},payload));
+    closeClientModal(); renderAll(); toast('Client enregistre');
+    return;
+  }
+  var op = id ? sb.from('clients').update(payload).eq('id',id) : sb.from('clients').insert(payload);
+  op.then(function(r){
+    if(r.error){toast('Erreur: '+r.error.message,'err');return;}
+    closeClientModal(); loadAll(); toast('Client enregistre');
+  });
+}
+
+// Close overlays on click outside
+document.getElementById('ov-contract').onclick = function(e){if(e.target===this)closeContractModal();};
+document.getElementById('ov-client').onclick   = function(e){if(e.target===this)closeClientModal();};
+
+// DEMO DATA
+function loadDemo() {
+  demo = true;
+  document.getElementById('conn-dot').className='conn-dot demo';
+  document.getElementById('conn-dot').title='Mode demo';
+  var today = new Date();
+  function d(y,m,day){return new Date(y,m-1,day).toISOString().split('T')[0];}
+  function daysFrom(n){var x=new Date();x.setDate(x.getDate()+n);return x.toISOString().split('T')[0];}
+  clients=[
+    {id:'c1',nom:'Cabinet Moreau',type:'Professionnel',contact:'Marie Moreau',email:'compta@moreau.fr',telephone:'06 12 34 56 78',departement:'49'},
+    {id:'c2',nom:'Dr. Lefebvre',type:'Doctolib',contact:'Paul Lefebvre',email:'dr.lefebvre@gmail.com',telephone:'06 98 76 54 32',departement:'49'},
+    {id:'c3',nom:'Mairie Treize-Septiers',type:'Collectivite',contact:'M. Girard',email:'mairie@treizeseptiers.fr',telephone:'02 51 66 00 00',departement:'85'},
+    {id:'c4',nom:'Boulangerie Martin',type:'Artisan',contact:'Jean Martin',email:'boulangerie.martin@orange.fr',telephone:'06 23 45 67 89',departement:'85'},
+    {id:'c5',nom:'SARL Dupont Peinture',type:'TPE',contact:'Marc Dupont',email:'m.dupont@orange.fr',telephone:'06 34 56 78 90',departement:'49'},
+    {id:'c6',nom:'Association Sportive Cholet',type:'Association',contact:'Pierre Brun',email:'as-cholet@wanadoo.fr',telephone:'06 45 67 89 01',departement:'49'},
+    {id:'c7',nom:'Garage Renault Pouzauges',type:'TPE',contact:'Sophie Renault',email:'contact@garage-renault.fr',telephone:'02 51 57 00 00',departement:'85'},
+    {id:'c8',nom:'EURL Bati79',type:'TPE',contact:'Luc Bati',email:'contact@bati79.fr',telephone:'06 56 78 90 12',departement:'79'},
+  ];
+  contracts=[
+    {id:'k1',client_id:'c1',produit:'Office 365',detail:'M365 Basic – 3 lic.',periodicite:'Annuel',montant_ht:180,derniere_facture:d(2024,6,15),echeance_contractuelle:daysFrom(-5),facture_ebp:'',actif:true},
+    {id:'k2',client_id:'c2',produit:'Office 365',detail:'M365 Standard – 1 lic.',periodicite:'Mensuel',montant_ht:14.4,derniere_facture:daysFrom(-20),echeance_contractuelle:daysFrom(10),facture_ebp:'',actif:true},
+    {id:'k3',client_id:'c3',produit:'Office 365',detail:'M365 Basic – 5 lic.',periodicite:'Annuel',montant_ht:300,derniere_facture:d(2025,1,10),echeance_contractuelle:d(2026,1,10),facture_ebp:'FA-2025-004',actif:true},
+    {id:'k4',client_id:'c7',produit:'Office 365',detail:'M365 Apps – 2 lic.',periodicite:'Annuel',montant_ht:198,derniere_facture:d(2025,2,1),echeance_contractuelle:d(2026,2,1),facture_ebp:'FA-2025-009',actif:true},
+    {id:'k5',client_id:'c4',produit:'Office 365',detail:'M365 Basic – 1 lic.',periodicite:'Annuel',montant_ht:60,derniere_facture:d(2024,12,1),echeance_contractuelle:d(2025,12,1),facture_ebp:'',actif:true},
+    {id:'k6',client_id:'c1',produit:'Domaines',detail:'moreau-avocats.fr',periodicite:'Annuel',montant_ht:12,derniere_facture:d(2024,9,10),echeance_contractuelle:daysFrom(-90),facture_ebp:'',actif:true},
+    {id:'k7',client_id:'c5',produit:'Domaines',detail:'dupont-peinture.fr',periodicite:'Annuel',montant_ht:15,derniere_facture:d(2024,9,20),echeance_contractuelle:daysFrom(-270),facture_ebp:'',actif:true},
+    {id:'k8',client_id:'c7',produit:'ESET MSP',detail:'Endpoint – 5 postes',periodicite:'Annuel',montant_ht:95,derniere_facture:d(2025,1,10),echeance_contractuelle:d(2026,1,10),facture_ebp:'FA-2025-003',actif:true},
+    {id:'k9',client_id:'c1',produit:'ESET MSP',detail:'Endpoint Security – 3 p.',periodicite:'Annuel',montant_ht:66,derniere_facture:d(2024,11,20),echeance_contractuelle:daysFrom(-210),facture_ebp:'',actif:true},
+    {id:'k10',client_id:'c3',produit:'ESET MSP',detail:'Endpoint Security – 8 p.',periodicite:'Annuel',montant_ht:176,derniere_facture:d(2025,3,1),echeance_contractuelle:d(2026,3,1),facture_ebp:'FA-2025-011',actif:true},
+    {id:'k11',client_id:'c1',produit:'Sauvegarde',detail:'Acronis Cloud Serveur+3 PC',periodicite:'Annuel',montant_ht:360,derniere_facture:d(2024,6,15),echeance_contractuelle:daysFrom(-5),facture_ebp:'',actif:true},
+    {id:'k12',client_id:'c6',produit:'Sauvegarde',detail:'Acronis Cloud 100 Go',periodicite:'Trimestriel',montant_ht:45,derniere_facture:daysFrom(-85),echeance_contractuelle:daysFrom(15),facture_ebp:'',actif:true},
+    {id:'k13',client_id:'c4',produit:'Contrats EPP',detail:'Pack Essentiel Pro',periodicite:'Annuel',montant_ht:360,derniere_facture:d(2024,12,1),echeance_contractuelle:d(2025,12,1),facture_ebp:'',actif:true},
+    {id:'k14',client_id:'c1',produit:'Contrats EPP',detail:'Pack Business',periodicite:'Annuel',montant_ht:720,derniere_facture:d(2024,6,15),echeance_contractuelle:daysFrom(-5),facture_ebp:'',actif:true},
+    {id:'k15',client_id:'c3',produit:'Maintenance Serveur',detail:'Dell PowerEdge T40',periodicite:'Annuel',montant_ht:480,derniere_facture:d(2024,11,1),echeance_contractuelle:daysFrom(-230),facture_ebp:'',actif:true},
+    {id:'k16',client_id:'c1',produit:'Maintenance Serveur',detail:'Synology + HP Gen10',periodicite:'Annuel',montant_ht:360,derniere_facture:d(2024,6,15),echeance_contractuelle:daysFrom(20),facture_ebp:'',actif:true},
+    {id:'k17',client_id:'c8',produit:'Licences VPN',detail:'OpenVPN 2 utilisateurs',periodicite:'Annuel',montant_ht:60,derniere_facture:d(2025,2,1),echeance_contractuelle:d(2026,2,1),facture_ebp:'FA-2025-008',actif:true},
+    {id:'k18',client_id:'c1',produit:'Licences VPN',detail:'WireGuard 3 utilisateurs',periodicite:'Annuel',montant_ht:90,derniere_facture:d(2025,1,15),echeance_contractuelle:d(2026,1,15),facture_ebp:'FA-2025-005',actif:true},
+  ];
+  renderAll();
+  toast('Mode demo active');
+}
+
 // INIT
-// ══════════════════════════════════════════════════════════════════════════
-
-// Safety net: force-hide loading overlay after 3s
-setTimeout(() => {
-  const l = document.getElementById('loading');
-  if (l) { l.classList.remove('on'); l.style.display = 'none'; l.style.pointerEvents = 'none'; }
-}, 3000);
-
-(async function init() {
-  const url = localStorage.getItem('sb_url');
-  const key = localStorage.getItem('sb_key');
+(function(){
+  var url = localStorage.getItem('sb_url');
+  var key = localStorage.getItem('sb_key');
   if (url && key) {
     document.getElementById('cfg-url').value = url;
     document.getElementById('cfg-key').value = key;
-    await connectSupabase(url, key);
+    connectSB(url, key);
   } else {
-    // démo automatique si pas de config
-    initDemo();
+    loadDemo();
   }
 })();
 </script>

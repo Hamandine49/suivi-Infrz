@@ -237,6 +237,7 @@ tr:hover td{background:#fafafa}
           <option>Office 365</option><option>Domaines</option><option>ESET MSP</option>
           <option>Sauvegarde</option><option>Licences</option><option>Contrats EPP</option>
           <option>Maintenance Serveur</option><option>Licences VPN</option>
+          <option>Contrat d'heures</option>
         </select>
       </div>
     </div>
@@ -341,6 +342,8 @@ CREATE INDEX ON contrats(echeance_contractuelle);</div>
             <option>Office 365</option><option>Domaines</option><option>ESET MSP</option>
             <option>Sauvegarde</option><option>Licences</option><option>Contrats EPP</option>
             <option>Maintenance Serveur</option><option>Licences VPN</option>
+            <option>Contrat d'heures</option>
+            <option>Contrat d'heures</option>
           </select>
         </div>
         <div class="form-group">
@@ -442,7 +445,7 @@ var selYear = new Date().getFullYear();
 var MONTHS = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
 var MONTHS_S = ['Jan','Fev','Mar','Avr','Mai','Jun','Jul','Aou','Sep','Oct','Nov','Dec'];
 var PERIOD_DAYS = {Mensuel:30,Trimestriel:91,Semestriel:182,Annuel:365};
-var PRODUCTS = ['Office 365','Domaines','ESET MSP','Sauvegarde','Licences','Contrats EPP','Maintenance Serveur','Licences VPN'];
+var PRODUCTS = ['Office 365','Domaines','ESET MSP','Sauvegarde','Licences','Contrats EPP','Maintenance Serveur','Licences VPN',"Contrat d'heures"];
 
 function nextDate(echeance, per) {
   if (!echeance) return null;
@@ -908,15 +911,11 @@ function loadDemo() {
 
 // INIT
 (function(){
-  var url = localStorage.getItem('sb_url');
-  var key = localStorage.getItem('sb_key');
-  if (url && key) {
-    document.getElementById('cfg-url').value = url;
-    document.getElementById('cfg-key').value = key;
-    connectSB(url, key);
-  } else {
-    loadDemo();
-  }
+  var url = 'https://bqkuwafccpoyqnldxfkn.supabase.co';
+  var key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxa3V3YWZjY3BveXFubGR4ZmtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MzAzNTgsImV4cCI6MjA5NzQwNjM1OH0.TgdMDqiId7orRt_95miBRS__oWmZuFb8_ZHD5tmrGKE';
+  document.getElementById('cfg-url').value = url;
+  document.getElementById('cfg-key').value = key;
+  connectSB(url, key);
 })();
 </script>
 </body>

@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inforezo — Suivi Contrats</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* ── TOKENS ──────────────────────────────────────────────────────── */
+:root {
+  --g1: #7AB319;
+  --g2: #5a8a0e;
+  --g3: #3d5e09;
+  --ink: #1a1a1a;
+  --ink2: #444;
+  --ink3: #888;
+  --surface: #f7f8f5;
+  --card: #ffffff;
+  --border: #e2e6d8;
+  --red: #d94f4f;
+  --orange: #e08c1a;
+  --green: #4a9e3f;
+  --blue: #2d7dd2;
+  --red-bg: #fdf1f1;
+  --orange-bg: #fef8ee;
+  --green-bg: #f1f8f0;
+  --blue-bg: #f0f6fd;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Mono', monospace;
+  --radius: 10px;
+  --shadow: 0 1px 4px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05);
+}
+
+/* ── RESET ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
+body { font-family: var(--font-ui); background: var(--surface); color: var(--ink); min-height: 100vh; }
+button { cursor: pointer; font-family: inherit; }
+input, select, textarea { font-family: inherit; }
+a { color: var(--g1); text-decoration: none; }
+
+/* ── LAYOUT ──────────────────────────────────────────────────────── */
+.sidebar {
+  position: fixed; top: 0; left: 0; width: 220px; height: 100vh;
+  background: var(--ink); display: flex; flex-direction: column;
+  z-index: 100; overflow-y: auto;
+}
+.sidebar-logo {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+}
+.sidebar-logo .brand { color: var(--g1); font-size: 1.25rem; font-weight: 700; letter-spacing: -.5px; }
+.sidebar-logo .sub { color: rgba(255,255,255,.4); font-size: .72rem; margin-top: 2px; }
+.sidebar-nav { padding: 12px 0; flex: 1; }
+.nav-section { padding: 16px 20px 6px; color: rgba(255,255,255,.3); font-size: .65rem; text-transform: uppercase; letter-spacing: 1px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px; color: rgba(255,255,255,.65); font-size: .85rem;
+  cursor: pointer; transition: all .15s; border-left: 3px solid transparent;
+}
+.nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+.nav-item.active { background: rgba(122,179,25,.12); color: var(--g1); border-left-color: var(--g1); }
+.nav-item .icon { width: 16px; text-align: center; opacity: .7; }
+.nav-item.active .icon { opacity: 1; }
+.main { margin-left: 220px; min-height: 100vh; }
+.topbar {
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-title { font-size: 1rem; font-weight: 600; color: var(--ink); }
+.topbar-meta { font-size: .8rem; color: var(--ink3); }
+.page { padding: 28px 32px; display: none; }
+.page.active { display: block; }
+
+/* ── CONFIG PAGE ─────────────────────────────────────────────────── */
+.config-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 32px; max-width: 560px; margin: 40px auto;
+}
+.config-card h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+.config-card p { color: var(--ink3); font-size: .85rem; margin-bottom: 24px; line-height: 1.6; }
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: .78rem; font-weight: 600; color: var(--ink2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+.form-input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: .88rem; color: var(--ink); background: var(--surface);
+  transition: border-color .15s;
+}
+.form-input:focus { outline: none; border-color: var(--g1); background: #fff; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 6px; font-size: .85rem; font-weight: 600; border: none; transition: all .15s; }
+.btn-primary { background: var(--g1); color: #fff; }
+.btn-primary:hover { background: var(--g2); }
+.btn-danger { background: var(--red-bg); color: var(--red); }
+.btn-danger:hover { background: #fad4d4; }
+.btn-ghost { background: transparent; color: var(--ink2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface); }
+.btn-sm { padding: 6px 12px; font-size: .78rem; }
+.config-status { margin-top: 16px; padding: 12px; border-radius: 6px; font-size: .82rem; }
+.config-status.ok { background: var(--green-bg); color: var(--green); }
+.config-status.err { background: var(--red-bg); color: var(--red); }
+
+/* ── KPIS ────────────────────────────────────────────────────────── */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.kpi {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; position: relative; overflow: hidden;
+}
+.kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--g1); }
+.kpi.red::before { background: var(--red); }
+.kpi.orange::before { background: var(--orange); }
+.kpi.blue::before { background: var(--blue); }
+.kpi-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .8px; color: var(--ink3); font-weight: 600; margin-bottom: 8px; }
+.kpi-value { font-size: 2rem; font-weight: 700; color: var(--ink); line-height: 1; }
+.kpi-sub { font-size: .75rem; color: var(--ink3); margin-top: 4px; }
+.kpi.red .kpi-value { color: var(--red); }
+.kpi.orange .kpi-value { color: var(--orange); }
+.kpi.blue .kpi-value { color: var(--blue); }
+
+/* ── SECTION HEADERS ─────────────────────────────────────────────── */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.section-title { font-size: .95rem; font-weight: 700; color: var(--ink); }
+.section-sub { font-size: .78rem; color: var(--ink3); margin-top: 2px; }
+
+/* ── PRODUCT GRID ────────────────────────────────────────────────── */
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 28px; }
+.product-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; cursor: pointer; transition: border-color .15s, transform .1s;
+}
+.product-card:hover { border-color: var(--g1); transform: translateY(-1px); }
+.product-card.selected { border-color: var(--g1); background: var(--green-bg); }
+.product-icon { font-size: 1.4rem; margin-bottom: 8px; }
+.product-name { font-size: .82rem; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.product-count { font-size: 1.6rem; font-weight: 700; color: var(--g1); }
+.product-label { font-size: .72rem; color: var(--ink3); }
+
+/* ── ALERT TABLE ─────────────────────────────────────────────────── */
+.table-wrap {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; margin-bottom: 24px;
+}
+.data-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.data-table th {
+  background: var(--surface); padding: 10px 14px; text-align: left;
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--ink3); font-weight: 600; border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.data-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--surface); }
+.data-table .client-name { font-weight: 600; color: var(--ink); }
+.data-table .service-tag {
+  display: inline-block; padding: 2px 8px; border-radius: 20px;
+  font-size: .7rem; font-weight: 600; background: var(--green-bg); color: var(--green);
+}
+.data-table .amount { font-family: var(--font-mono); font-size: .82rem; font-weight: 600; }
+
+/* ── STATUS BADGES ───────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 20px; font-size: .72rem; font-weight: 700;
+}
+.badge.red    { background: var(--red-bg);    color: var(--red); }
+.badge.orange { background: var(--orange-bg); color: var(--orange); }
+.badge.green  { background: var(--green-bg);  color: var(--green); }
+
+/* ── MONTH FILTER ────────────────────────────────────────────────── */
+.month-nav { display: flex; align-items: center; gap: 8px; }
+.month-btn {
+  width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--card); color: var(--ink2); display: flex; align-items: center; justify-content: center;
+  font-size: .9rem; transition: all .15s;
+}
+.month-btn:hover { border-color: var(--g1); color: var(--g1); }
+.month-label { font-size: .9rem; font-weight: 700; color: var(--ink); min-width: 140px; text-align: center; }
+
+/* ── CALENDAR STRIP ──────────────────────────────────────────────── */
+.cal-strip { display: grid; grid-template-columns: repeat(12,1fr); gap: 6px; margin-bottom: 24px; }
+.cal-month {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 6px; text-align: center; cursor: pointer; transition: all .15s;
+}
+.cal-month:hover { border-color: var(--g1); }
+.cal-month.has-items { border-color: var(--orange); }
+.cal-month.has-late  { border-color: var(--red); }
+.cal-month.selected  { background: var(--g1); border-color: var(--g1); }
+.cal-month.selected .cal-mname, .cal-month.selected .cal-mcount { color: #fff !important; }
+.cal-mname { font-size: .68rem; text-transform: uppercase; letter-spacing: .5px; color: var(--ink3); font-weight: 600; }
+.cal-mcount { font-size: 1.1rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
+.cal-mamount { font-size: .65rem; color: var(--ink3); margin-top: 1px; }
+
+/* ── MODAL ───────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200;
+  display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--card); border-radius: 12px; width: 540px; max-height: 90vh;
+  overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.modal-head {
+  padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-head h3 { font-size: .95rem; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 1.2rem; color: var(--ink3); padding: 4px; }
+.modal-close:hover { color: var(--ink); }
+.modal-body { padding: 20px 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+/* ── TOAST ───────────────────────────────────────────────────────── */
+.toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
+.toast { padding: 12px 16px; border-radius: 8px; font-size: .83rem; font-weight: 600; box-shadow: var(--shadow); animation: slideIn .2s ease; }
+.toast.ok  { background: var(--green); color: #fff; }
+.toast.err { background: var(--red);   color: #fff; }
+@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+/* ── EMPTY STATE ─────────────────────────────────────────────────── */
+.empty { text-align: center; padding: 48px 24px; color: var(--ink3); }
+.empty .empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: .4; }
+.empty p { font-size: .88rem; }
+
+/* ── LOADER ──────────────────────────────────────────────────────── */
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--g1); border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,.7); z-index: 150; align-items: center; justify-content: center; }
+.loading-overlay.on { display: flex; }
+
+/* ── FACTURE MARK ────────────────────────────────────────────────── */
+.fact-ref { font-family: var(--font-mono); font-size: .75rem; color: var(--ink3); }
+.fact-done { color: var(--green); font-weight: 600; }
+
+/* ── RESPONSIVE (tablet) ─────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .sidebar { width: 60px; }
+  .sidebar-logo .brand, .sidebar-logo .sub, .nav-section, .nav-item span { display: none; }
+  .main { margin-left: 60px; }
+  .topbar, .page { padding-left: 20px; padding-right: 20px; }
+  .cal-strip { grid-template-columns: repeat(6,1fr); }
+  .form-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">Inforezo</div>
+    <div class="sub">Suivi contrats</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Tableau</div>
+    <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span><span>Vue globale</span></div>
+    <div class="nav-item" data-page="monthly"><span class="icon">📅</span><span>Par mois</span></div>
+    <div class="nav-section">Données</div>
+    <div class="nav-item" data-page="contracts"><span class="icon">📋</span><span>Contrats</span></div>
+    <div class="nav-item" data-page="clients"><span class="icon">👥</span><span>Clients</span></div>
+    <div class="nav-section">Système</div>
+    <div class="nav-item" data-page="config"><span class="icon">⚙️</span><span>Configuration</span></div>
+  </nav>
+</aside>
+
+<main class="main">
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div>
+    <div class="topbar-title" id="topbar-title">Vue globale</div>
+    <div class="topbar-meta" id="topbar-meta">Chargement…</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <button class="btn btn-primary btn-sm" onclick="openModal('add')">+ Ajouter</button>
+    <span id="conn-dot" style="width:8px;height:8px;border-radius:50%;background:var(--ink3);display:inline-block;" title="Non connecté"></span>
+  </div>
+</div>
+
+<!-- ── PAGE : DASHBOARD ── -->
+<div class="page active" id="page-dashboard">
+
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Contrats actifs</div><div class="kpi-value" id="k-total">—</div><div class="kpi-sub">toutes catégories</div></div>
+    <div class="kpi red"><div class="kpi-label">En retard</div><div class="kpi-value" id="k-late">—</div><div class="kpi-sub">à facturer immédiatement</div></div>
+    <div class="kpi orange"><div class="kpi-label">Ce mois-ci</div><div class="kpi-value" id="k-month">—</div><div class="kpi-sub">échéances dans 30 j</div></div>
+    <div class="kpi blue"><div class="kpi-label">CA annuel estimé</div><div class="kpi-value" id="k-ca">—</div><div class="kpi-sub">HT, sur base actuelle</div></div>
+  </div>
+
+  <div class="section-header">
+    <div><div class="section-title">Licences par produit</div><div class="section-sub">Cliquer pour filtrer la liste</div></div>
+    <button class="btn btn-ghost btn-sm" id="clear-filter" style="display:none" onclick="clearFilter()">✕ Tout afficher</button>
+  </div>
+  <div class="product-grid" id="product-grid"></div>
+
+  <div class="section-header">
+    <div><div class="section-title" id="alert-title">Alertes</div></div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Client</th><th>Produit</th><th>Périodicité</th>
+          <th>Montant HT</th><th>Éch. contractuelle</th>
+          <th>Prochaine éch.</th><th>Statut</th><th>Facture EBP</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="alert-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── PAGE : MONTHLY ── -->
+<div class="page" id="page-monthly">
+  <div class="section-header" style="margin-bottom:20px;">
+    <div class="section-title">Calendrier de facturation — 12 mois</div>
+  </div>
+  <div class="cal-strip" id="cal-strip"></div>
+
+  <div class="section-header">
+    <div>
+      <div class="section-title" id="month-view-title">—</div>
+      <div class="section-sub" id="month-view-sub"></div>
+    </div>
+    <div class="month-nav">
+      <button class="month-btn" onclick="shiftMonth(-1)">‹</button>
+      <span class="month-label" id="month-label-nav">—</span>
+      <button class="month-btn" onclick="shiftMonth(1)">›</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Client</th><th>Produit</th><th>Détail</th>
+          <th>Montant HT</th><th>Prochaine éch.</th><th>Statut</th><th>Facture EBP</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="month-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── PAGE : CONTRACTS ── -->
+<div class="page" id="page-contracts">
+  <div class="section-header">
+    <div class="section-title">Tous les contrats</div>
+    <div style="display:flex;gap:8px;">
+      <input class="form-input" id="search-contracts" placeholder="Rechercher…" style="width:200px;padding:7px 12px;" oninput="renderContracts()">
+      <select class="form-input" id="filter-product" style="width:160px;padding:7px 12px;" onchange="renderContracts()">
+        <option value="">Tous les produits</option>
+      </select>
+    </div>
+  </div>
+  <div class="table-wrap" style="margin-top:14px;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Client</th><th>Produit</th><th>Détail</th><th>Périodicité</th>
+          <th>Montant HT</th><th>Dern. facture</th><th>Éch. contractuelle</th>
+          <th>Prochaine éch.</th><th>Statut</th><th>Facture EBP</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="contracts-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── PAGE : CLIENTS ── -->
+<div class="page" id="page-clients">
+  <div class="section-header">
+    <div class="section-title">Clients</div>
+    <button class="btn btn-primary btn-sm" onclick="openClientModal()">+ Nouveau client</button>
+  </div>
+  <div class="table-wrap" style="margin-top:14px;">
+    <table class="data-table">
+      <thead><tr><th>Nom</th><th>Type</th><th>Contact</th><th>Email</th><th>Tél.</th><th>Dept</th><th>Contrats actifs</th><th></th></tr></thead>
+      <tbody id="clients-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── PAGE : CONFIG ── -->
+<div class="page" id="page-config">
+  <div class="config-card">
+    <h2>⚙️ Configuration Supabase</h2>
+    <p>Renseignez l'URL et la clé publique (anon key) de votre projet Supabase. Ces informations sont visibles dans <strong>Project Settings → API</strong> de votre tableau de bord Supabase.</p>
+    <div class="form-group">
+      <label class="form-label">URL du projet Supabase</label>
+      <input class="form-input" id="cfg-url" placeholder="https://xxxxxxxxxxxx.supabase.co" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Clé publique (anon key)</label>
+      <input class="form-input" id="cfg-key" placeholder="eyJhbGciOi…" />
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn btn-primary" onclick="saveConfig()">Enregistrer & tester</button>
+      <button class="btn btn-ghost" onclick="initDemo()">Mode démo (sans Supabase)</button>
+    </div>
+    <div id="cfg-status" class="config-status" style="display:none;"></div>
+  </div>
+
+  <div class="config-card" style="margin-top:16px;max-width:560px;margin-left:auto;margin-right:auto;">
+    <h2>🗄️ Initialiser la base de données</h2>
+    <p>Copiez ce SQL dans l'éditeur SQL de Supabase (SQL Editor → New query) pour créer les tables nécessaires.</p>
+    <pre style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;font-size:.72rem;overflow-x:auto;line-height:1.6;color:var(--ink2);">-- Clients
+CREATE TABLE clients (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nom text NOT NULL,
+  type text,
+  contact text,
+  email text,
+  telephone text,
+  adresse text,
+  departement text,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Contrats / abonnements
+CREATE TABLE contrats (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id uuid REFERENCES clients(id) ON DELETE CASCADE,
+  produit text NOT NULL,
+  detail text,
+  periodicite text NOT NULL DEFAULT 'Annuel',
+  montant_ht numeric(10,2),
+  derniere_facture date,
+  echeance_contractuelle date,
+  facture_ebp text,
+  notes text,
+  actif boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Index utiles
+CREATE INDEX ON contrats(client_id);
+CREATE INDEX ON contrats(echeance_contractuelle);
+CREATE INDEX ON contrats(produit);</pre>
+    <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="copySQL()">📋 Copier le SQL</button>
+  </div>
+</div>
+
+</main>
+
+<!-- ── MODAL CONTRAT ── -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">Ajouter un contrat</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="modal-id">
+      <div class="form-group">
+        <label class="form-label">Client *</label>
+        <select class="form-input" id="m-client"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Produit *</label>
+          <select class="form-input" id="m-produit">
+            <option>Office 365</option><option>Domaines</option>
+            <option>ESET MSP</option><option>Sauvegarde</option>
+            <option>Licences</option><option>Contrats EPP</option>
+            <option>Maintenance Serveur</option><option>Licences VPN</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Périodicité *</label>
+          <select class="form-input" id="m-periodicite">
+            <option>Mensuel</option><option>Trimestriel</option>
+            <option>Semestriel</option><option selected>Annuel</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Détail (offre, nb licences…)</label>
+        <input class="form-input" id="m-detail" placeholder="ex : M365 Business Basic – 3 licences">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Montant HT (€)</label>
+          <input class="form-input" type="number" step="0.01" id="m-montant" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dernière facture émise</label>
+          <input class="form-input" type="date" id="m-dernfact">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Échéance contractuelle <span style="color:var(--g1)">★</span></label>
+        <input class="form-input" type="date" id="m-echeance">
+        <div style="font-size:.72rem;color:var(--ink3);margin-top:4px;">Date anniversaire réelle du contrat — le cycle de facturation est calé sur cette date</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">N° Facture EBP</label>
+          <input class="form-input" id="m-facturebp" placeholder="FA-2025-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <input class="form-input" id="m-notes" placeholder="">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-danger btn-sm" id="btn-delete" style="display:none" onclick="deleteContract()">Supprimer</button>
+      <button class="btn btn-primary" onclick="saveContract()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CLIENT -->
+<div class="modal-overlay" id="modal-client-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-client-title">Nouveau client</h3>
+      <button class="modal-close" onclick="closeClientModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mc-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nom / Entreprise *</label>
+          <input class="form-input" id="mc-nom">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-input" id="mc-type">
+            <option>TPE</option><option>Artisan</option><option>Professionnel</option>
+            <option>Collectivité</option><option>Association</option><option>Doctolib</option><option>Particulier</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Contact</label><input class="form-input" id="mc-contact"></div>
+        <div class="form-group"><label class="form-label">Téléphone</label><input class="form-input" id="mc-tel"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="mc-email"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Adresse</label><input class="form-input" id="mc-adresse"></div>
+        <div class="form-group"><label class="form-label">Département</label><input class="form-input" id="mc-dept" placeholder="49"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes</label><input class="form-input" id="mc-notes"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeClientModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveClient()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+<div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════════════
+let supabase = null;
+let contracts = [];
+let clients   = [];
+let demoMode  = false;
+let activeFilter = null;
+let selectedMonth = new Date().getMonth(); // 0-based
+let selectedYear  = new Date().getFullYear();
+
+const PRODUCTS = [
+  { key: 'Office 365',          icon: '☁️' },
+  { key: 'Domaines',            icon: '🌐' },
+  { key: 'ESET MSP',            icon: '🛡️' },
+  { key: 'Sauvegarde',          icon: '💾' },
+  { key: 'Licences',            icon: '📦' },
+  { key: 'Contrats EPP',        icon: '📋' },
+  { key: 'Maintenance Serveur', icon: '🖥️' },
+  { key: 'Licences VPN',        icon: '🔐' },
+];
+
+const PERIOD_DAYS = { Mensuel: 30, Trimestriel: 91, Semestriel: 182, Annuel: 365 };
+
+const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
+                   'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MONTHS_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+// ══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════════════
+function nextDate(echeance, periodicite) {
+  if (!echeance) return null;
+  const d = new Date(echeance);
+  const days = PERIOD_DAYS[periodicite] || 365;
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function daysLeft(d) {
+  if (!d) return null;
+  const now = new Date(); now.setHours(0,0,0,0);
+  return Math.round((new Date(d) - now) / 86400000);
+}
+
+function status(days) {
+  if (days === null) return { label: '—', cls: '' };
+  if (days < 0)  return { label: '🔴 En retard',    cls: 'red' };
+  if (days <= 30) return { label: '🟠 À facturer',   cls: 'orange' };
+  return              { label: '🟢 OK',              cls: 'green' };
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('fr-FR');
+}
+
+function fmtEur(n) {
+  if (n === null || n === undefined) return '—';
+  return Number(n).toLocaleString('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:2 });
+}
+
+function annualCA(c) {
+  const m = Number(c.montant_ht) || 0;
+  const f = { Mensuel:12, Trimestriel:4, Semestriel:2, Annuel:1 }[c.periodicite] || 1;
+  return m * f;
+}
+
+function toast(msg, type='ok') {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg;
+  document.getElementById('toast-wrap').appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function clientName(cid) {
+  const c = clients.find(c => c.id === cid);
+  return c ? c.nom : cid;
+}
+
+function setConn(ok) {
+  const dot = document.getElementById('conn-dot');
+  dot.style.background = ok ? 'var(--green)' : 'var(--red)';
+  dot.title = ok ? 'Connecté à Supabase' : 'Non connecté';
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SUPABASE CONFIG
+// ══════════════════════════════════════════════════════════════════════════
+async function saveConfig() {
+  const url = document.getElementById('cfg-url').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  if (!url || !key) { showCfgStatus('Veuillez remplir les deux champs.', 'err'); return; }
+
+  localStorage.setItem('sb_url', url);
+  localStorage.setItem('sb_key', key);
+  await connectSupabase(url, key);
+}
+
+async function connectSupabase(url, key) {
+  try {
+    supabase = window.supabase.createClient(url, key);
+    const { error } = await supabase.from('clients').select('id').limit(1);
+    if (error) throw error;
+    setConn(true);
+    showCfgStatus('✅ Connexion réussie ! Tables trouvées.', 'ok');
+    demoMode = false;
+    await loadAll();
+  } catch(e) {
+    setConn(false);
+    showCfgStatus('❌ Erreur : ' + e.message, 'err');
+  }
+}
+
+function showCfgStatus(msg, cls) {
+  const el = document.getElementById('cfg-status');
+  el.style.display = 'block'; el.className = `config-status ${cls}`; el.textContent = msg;
+}
+
+function copySQL() {
+  const sql = document.querySelector('pre').textContent;
+  navigator.clipboard.writeText(sql).then(() => toast('SQL copié !'));
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// DEMO DATA
+// ══════════════════════════════════════════════════════════════════════════
+function initDemo() {
+  demoMode = true;
+  setConn(false);
+  document.getElementById('conn-dot').style.background = 'var(--orange)';
+  document.getElementById('conn-dot').title = 'Mode démo';
+
+  const today = new Date();
+  const d = (y,m,day) => new Date(y,m-1,day).toISOString().split('T')[0];
+  const past = (days) => { const x = new Date(); x.setDate(x.getDate()-days); return x.toISOString().split('T')[0]; };
+  const future = (days) => { const x = new Date(); x.setDate(x.getDate()+days); return x.toISOString().split('T')[0]; };
+
+  clients = [
+    { id:'c1', nom:'Cabinet Moreau',            type:'Professionnel', contact:'Marie Moreau',    email:'compta@moreau.fr',             telephone:'06 12 34 56 78', departement:'49' },
+    { id:'c2', nom:'Dr. Lefebvre',               type:'Doctolib',      contact:'Paul Lefebvre',   email:'dr.lefebvre@gmail.com',        telephone:'06 98 76 54 32', departement:'49' },
+    { id:'c3', nom:'Mairie Treize-Septiers',     type:'Collectivité',  contact:'M. Girard',       email:'mairie@treizeseptiers.fr',     telephone:'02 51 66 00 00', departement:'85' },
+    { id:'c4', nom:'Boulangerie Martin',         type:'Artisan',       contact:'Jean Martin',     email:'boulangerie.martin@orange.fr', telephone:'06 23 45 67 89', departement:'85' },
+    { id:'c5', nom:'SARL Dupont Peinture',       type:'TPE',           contact:'Marc Dupont',     email:'m.dupont@orange.fr',           telephone:'06 34 56 78 90', departement:'49' },
+    { id:'c6', nom:'Association Sportive Cholet',type:'Association',   contact:'Pierre Brun',     email:'as-cholet@wanadoo.fr',         telephone:'06 45 67 89 01', departement:'49' },
+    { id:'c7', nom:'Garage Renault Pouzauges',   type:'TPE',           contact:'Sophie Renault',  email:'contact@garage-renault.fr',    telephone:'02 51 57 00 00', departement:'85' },
+    { id:'c8', nom:'EURL Bâti79',               type:'TPE',           contact:'Luc Bati',        email:'contact@bati79.fr',            telephone:'06 56 78 90 12', departement:'79' },
+  ];
+
+  contracts = [
+    { id:'k1',  client_id:'c1', produit:'Office 365',          detail:'M365 Business Basic – 3 lic.',  periodicite:'Annuel',      montant_ht:180,   derniere_facture:d(2024,6,15),  echeance_contractuelle:d(2025,6,15),  facture_ebp:'FA-2024-031', actif:true },
+    { id:'k2',  client_id:'c2', produit:'Office 365',          detail:'M365 Business Standard – 1 lic.',periodicite:'Mensuel',    montant_ht:14.4,  derniere_facture:past(20),         echeance_contractuelle:future(10),    facture_ebp:'', actif:true },
+    { id:'k3',  client_id:'c3', produit:'Office 365',          detail:'M365 Business Basic – 5 lic.',  periodicite:'Annuel',      montant_ht:300,   derniere_facture:d(2025,1,10),  echeance_contractuelle:d(2026,1,10),  facture_ebp:'FA-2025-004', actif:true },
+    { id:'k4',  client_id:'c7', produit:'Office 365',          detail:'M365 Apps – 2 lic.',            periodicite:'Annuel',      montant_ht:198,   derniere_facture:d(2025,2,1),   echeance_contractuelle:d(2026,2,1),   facture_ebp:'FA-2025-009', actif:true },
+    { id:'k5',  client_id:'c4', produit:'Office 365',          detail:'M365 Business Basic – 1 lic.',  periodicite:'Annuel',      montant_ht:60,    derniere_facture:d(2024,12,1),  echeance_contractuelle:d(2025,12,1),  facture_ebp:'', actif:true },
+    { id:'k6',  client_id:'c1', produit:'Domaines',            detail:'moreau-avocats.fr',             periodicite:'Annuel',      montant_ht:12,    derniere_facture:d(2024,9,10),  echeance_contractuelle:past(90),      facture_ebp:'', actif:true },
+    { id:'k7',  client_id:'c5', produit:'Domaines',            detail:'dupont-peinture.fr',            periodicite:'Annuel',      montant_ht:15,    derniere_facture:d(2024,9,20),  echeance_contractuelle:past(270),     facture_ebp:'', actif:true },
+    { id:'k8',  client_id:'c7', produit:'ESET MSP',            detail:'ESET Endpoint – 5 postes',      periodicite:'Annuel',      montant_ht:95,    derniere_facture:d(2025,1,10),  echeance_contractuelle:d(2026,1,10),  facture_ebp:'FA-2025-003', actif:true },
+    { id:'k9',  client_id:'c1', produit:'ESET MSP',            detail:'ESET Endpoint Security – 3 p.', periodicite:'Annuel',      montant_ht:66,    derniere_facture:d(2024,11,20), echeance_contractuelle:past(210),     facture_ebp:'', actif:true },
+    { id:'k10', client_id:'c3', produit:'ESET MSP',            detail:'ESET Endpoint Security – 8 p.', periodicite:'Annuel',      montant_ht:176,   derniere_facture:d(2025,3,1),   echeance_contractuelle:d(2026,3,1),   facture_ebp:'FA-2025-011', actif:true },
+    { id:'k11', client_id:'c1', produit:'Sauvegarde',          detail:'Acronis Cloud – Serveur + 3 PC', periodicite:'Annuel',     montant_ht:360,   derniere_facture:d(2024,6,15),  echeance_contractuelle:past(5),       facture_ebp:'', actif:true },
+    { id:'k12', client_id:'c6', produit:'Sauvegarde',          detail:'Acronis Cloud – 100 Go',        periodicite:'Trimestriel', montant_ht:45,    derniere_facture:past(85),        echeance_contractuelle:past(10),      facture_ebp:'', actif:true },
+    { id:'k13', client_id:'c4', produit:'Contrats EPP',        detail:'Pack Essentiel Pro',            periodicite:'Annuel',      montant_ht:360,   derniere_facture:d(2024,12,1),  echeance_contractuelle:d(2025,12,1),  facture_ebp:'', actif:true },
+    { id:'k14', client_id:'c1', produit:'Contrats EPP',        detail:'Pack Business',                 periodicite:'Annuel',      montant_ht:720,   derniere_facture:d(2024,6,15),  echeance_contractuelle:past(5),       facture_ebp:'', actif:true },
+    { id:'k15', client_id:'c3', produit:'Maintenance Serveur', detail:'Dell PowerEdge T40',            periodicite:'Annuel',      montant_ht:480,   derniere_facture:d(2024,11,1),  echeance_contractuelle:past(230),     facture_ebp:'', actif:true },
+    { id:'k16', client_id:'c1', produit:'Maintenance Serveur', detail:'Synology + HP Gen10',           periodicite:'Annuel',      montant_ht:360,   derniere_facture:d(2024,6,15),  echeance_contractuelle:past(5),       facture_ebp:'', actif:true },
+    { id:'k17', client_id:'c8', produit:'Licences VPN',        detail:'OpenVPN – 2 utilisateurs',      periodicite:'Annuel',      montant_ht:60,    derniere_facture:d(2025,2,1),   echeance_contractuelle:d(2026,2,1),   facture_ebp:'FA-2025-008', actif:true },
+    { id:'k18', client_id:'c1', produit:'Licences VPN',        detail:'WireGuard – 3 utilisateurs',    periodicite:'Annuel',      montant_ht:90,    derniere_facture:d(2025,1,15),  echeance_contractuelle:d(2026,1,15),  facture_ebp:'FA-2025-005', actif:true },
+    { id:'k19', client_id:'c2', produit:'Domaines',            detail:'lefebvre-medecin.fr',           periodicite:'Annuel',      montant_ht:12,    derniere_facture:d(2025,3,1),   echeance_contractuelle:future(18),    facture_ebp:'', actif:true },
+    { id:'k20', client_id:'c8', produit:'ESET MSP',            detail:'ESET Endpoint – 4 postes',      periodicite:'Annuel',      montant_ht:76,    derniere_facture:d(2025,4,1),   echeance_contractuelle:d(2026,4,1),   facture_ebp:'FA-2025-015', actif:true },
+  ];
+
+  renderAll();
+  toast('Mode démo activé — données fictives', 'ok');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// LOAD FROM SUPABASE
+// ══════════════════════════════════════════════════════════════════════════
+async function loadAll() {
+  document.getElementById('loading').classList.add('on');
+  try {
+    const [{ data: cl }, { data: co }] = await Promise.all([
+      supabase.from('clients').select('*').order('nom'),
+      supabase.from('contrats').select('*').eq('actif', true).order('echeance_contractuelle'),
+    ]);
+    clients   = cl || [];
+    contracts = co || [];
+    renderAll();
+  } catch(e) { toast('Erreur chargement : ' + e.message, 'err'); }
+  document.getElementById('loading').classList.remove('on');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// COMPUTED
+// ══════════════════════════════════════════════════════════════════════════
+function enriched() {
+  return contracts.map(c => {
+    const next = nextDate(c.echeance_contractuelle, c.periodicite);
+    const days = daysLeft(next);
+    const st   = status(days);
+    return { ...c, _next: next, _days: days, _status: st };
+  });
+}
+
+function contractsForMonth(year, month) {
+  return enriched().filter(c => {
+    if (!c._next) return false;
+    return c._next.getFullYear() === year && c._next.getMonth() === month;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// RENDER ALL
+// ══════════════════════════════════════════════════════════════════════════
+function renderAll() {
+  updateTopbarMeta();
+  renderDashboard();
+  renderMonthly();
+  renderContracts();
+  renderClients();
+  populateClientSelect();
+  populateProductFilter();
+}
+
+function updateTopbarMeta() {
+  const now = new Date();
+  document.getElementById('topbar-meta').textContent =
+    now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) +
+    (demoMode ? ' — MODE DÉMO' : '');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════════════════════
+function renderDashboard() {
+  const data = enriched();
+  const total = data.length;
+  const late  = data.filter(c => c._days !== null && c._days < 0).length;
+  const soon  = data.filter(c => c._days !== null && c._days >= 0 && c._days <= 30).length;
+  const ca    = data.reduce((s, c) => s + annualCA(c), 0);
+
+  document.getElementById('k-total').textContent = total;
+  document.getElementById('k-late').textContent  = late;
+  document.getElementById('k-month').textContent = soon;
+  document.getElementById('k-ca').textContent    = fmtEur(ca);
+
+  // Product grid
+  const grid = document.getElementById('product-grid');
+  grid.innerHTML = '';
+  PRODUCTS.forEach(p => {
+    const items = data.filter(c => c.produit === p.key);
+    if (!items.length) return;
+    const div = document.createElement('div');
+    div.className = 'product-card' + (activeFilter === p.key ? ' selected' : '');
+    div.innerHTML = `<div class="product-icon">${p.icon}</div>
+      <div class="product-name">${p.key}</div>
+      <div class="product-count">${items.length}</div>
+      <div class="product-label">contrat${items.length>1?'s':''} actif${items.length>1?'s':''}</div>`;
+    div.onclick = () => toggleFilter(p.key);
+    grid.appendChild(div);
+  });
+
+  // Alert table
+  const filtered = activeFilter ? data.filter(c => c.produit === activeFilter) : data;
+  const alerts   = filtered.filter(c => c._days !== null && c._days <= 30).sort((a,b) => a._days - b._days);
+  document.getElementById('alert-title').textContent =
+    activeFilter ? `Contrats — ${activeFilter} (${filtered.length})` : `Alertes (${alerts.length} à traiter)`;
+
+  const tbody = document.getElementById('alert-tbody');
+  const rows  = activeFilter ? filtered.sort((a,b) => (a._days||999)-(b._days||999)) : alerts;
+  tbody.innerHTML = rows.length ? rows.map(c => contractRow(c, true)).join('') : emptyRow(9);
+}
+
+function toggleFilter(key) {
+  activeFilter = activeFilter === key ? null : key;
+  document.getElementById('clear-filter').style.display = activeFilter ? '' : 'none';
+  renderDashboard();
+}
+function clearFilter() { activeFilter = null; renderDashboard(); document.getElementById('clear-filter').style.display='none'; }
+
+function contractRow(c, showDelete=false) {
+  const st = c._status;
+  return `<tr>
+    <td><span class="client-name">${clientName(c.client_id)}</span></td>
+    <td><span class="service-tag">${c.produit}</span></td>
+    <td>${c.periodicite}</td>
+    <td class="amount">${fmtEur(c.montant_ht)}</td>
+    <td>${fmtDate(c.echeance_contractuelle)}</td>
+    <td>${c._next ? fmtDate(c._next) : '—'}</td>
+    <td><span class="badge ${st.cls}">${st.label}</span></td>
+    <td class="${c.facture_ebp?'fact-done':'fact-ref'}">${c.facture_ebp || '—'}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="openModal('edit','${c.id}')">✏️</button></td>
+  </tr>`;
+}
+
+function emptyRow(cols) {
+  return `<tr><td colspan="${cols}"><div class="empty"><div class="empty-icon">🎉</div><p>Aucune alerte pour le moment.</p></div></td></tr>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MONTHLY VIEW
+// ══════════════════════════════════════════════════════════════════════════
+function renderMonthly() {
+  renderCalStrip();
+  renderMonthTable();
+}
+
+function renderCalStrip() {
+  const strip = document.getElementById('cal-strip');
+  strip.innerHTML = '';
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const m = (now.getMonth() + i) % 12;
+    const y = now.getFullYear() + Math.floor((now.getMonth() + i) / 12);
+    const items = contractsForMonth(y, m);
+    const late  = items.filter(c => c._days < 0).length;
+    const total = items.length;
+    const amount = items.reduce((s,c) => s + Number(c.montant_ht||0), 0);
+    const isSel = (m === selectedMonth && y === selectedYear);
+
+    const div = document.createElement('div');
+    div.className = 'cal-month' + (late>0?' has-late':total>0?' has-items':'') + (isSel?' selected':'');
+    div.innerHTML = `<div class="cal-mname">${MONTHS_SHORT[m]}</div>
+      <div class="cal-mcount">${total||'—'}</div>
+      <div class="cal-mamount">${total?fmtEur(amount):''}</div>`;
+    div.onclick = () => { selectedMonth = m; selectedYear = y; renderMonthly(); };
+    strip.appendChild(div);
+  }
+}
+
+function renderMonthTable() {
+  const items = contractsForMonth(selectedYear, selectedMonth);
+  const total = items.reduce((s,c) => s + Number(c.montant_ht||0), 0);
+  document.getElementById('month-view-title').textContent = `${MONTHS_FR[selectedMonth]} ${selectedYear}`;
+  document.getElementById('month-view-sub').textContent = `${items.length} contrat${items.length>1?'s':''} — ${fmtEur(total)} HT à facturer`;
+  document.getElementById('month-label-nav').textContent = `${MONTHS_FR[selectedMonth]} ${selectedYear}`;
+
+  const tbody = document.getElementById('month-tbody');
+  tbody.innerHTML = items.length ? items.map(c => `<tr>
+    <td><span class="client-name">${clientName(c.client_id)}</span></td>
+    <td><span class="service-tag">${c.produit}</span></td>
+    <td style="color:var(--ink3);font-size:.8rem">${c.detail||'—'}</td>
+    <td class="amount">${fmtEur(c.montant_ht)}</td>
+    <td>${c._next ? fmtDate(c._next) : '—'}</td>
+    <td><span class="badge ${c._status.cls}">${c._status.label}</span></td>
+    <td class="${c.facture_ebp?'fact-done':'fact-ref'}">${c.facture_ebp||'—'}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="openModal('edit','${c.id}')">✏️</button></td>
+  </tr>`).join('') : emptyRow(8);
+}
+
+function shiftMonth(dir) {
+  let m = selectedMonth + dir;
+  let y = selectedYear;
+  if (m < 0)  { m = 11; y--; }
+  if (m > 11) { m = 0;  y++; }
+  selectedMonth = m; selectedYear = y;
+  renderMonthly();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// CONTRACTS PAGE
+// ══════════════════════════════════════════════════════════════════════════
+function renderContracts() {
+  const search  = (document.getElementById('search-contracts')?.value||'').toLowerCase();
+  const product = document.getElementById('filter-product')?.value||'';
+  const data    = enriched().filter(c => {
+    const name = clientName(c.client_id).toLowerCase();
+    return (!search || name.includes(search) || (c.produit||'').toLowerCase().includes(search) || (c.detail||'').toLowerCase().includes(search))
+      && (!product || c.produit === product);
+  }).sort((a,b)=>(a._days||999)-(b._days||999));
+
+  const tbody = document.getElementById('contracts-tbody');
+  tbody.innerHTML = data.length ? data.map(c => `<tr>
+    <td><span class="client-name">${clientName(c.client_id)}</span></td>
+    <td><span class="service-tag">${c.produit}</span></td>
+    <td style="color:var(--ink3);font-size:.8rem;">${c.detail||'—'}</td>
+    <td>${c.periodicite}</td>
+    <td class="amount">${fmtEur(c.montant_ht)}</td>
+    <td>${fmtDate(c.derniere_facture)}</td>
+    <td>${fmtDate(c.echeance_contractuelle)}</td>
+    <td>${c._next?fmtDate(c._next):'—'}</td>
+    <td><span class="badge ${c._status.cls}">${c._status.label}</span></td>
+    <td class="${c.facture_ebp?'fact-done':'fact-ref'}">${c.facture_ebp||'—'}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="openModal('edit','${c.id}')">✏️</button></td>
+  </tr>`).join('') : emptyRow(11);
+}
+
+function populateProductFilter() {
+  const sel = document.getElementById('filter-product');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Tous les produits</option>' +
+    PRODUCTS.map(p => `<option ${p.key===current?'selected':''}>${p.key}</option>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// CLIENTS PAGE
+// ══════════════════════════════════════════════════════════════════════════
+function renderClients() {
+  const tbody = document.getElementById('clients-tbody');
+  tbody.innerHTML = clients.length ? clients.map(cl => {
+    const nb = contracts.filter(c => c.client_id === cl.id && c.actif).length;
+    return `<tr>
+      <td><span class="client-name">${cl.nom}</span></td>
+      <td><span class="badge green" style="font-size:.68rem;">${cl.type||'—'}</span></td>
+      <td>${cl.contact||'—'}</td>
+      <td style="font-size:.8rem;">${cl.email||'—'}</td>
+      <td style="font-size:.8rem;">${cl.telephone||'—'}</td>
+      <td>${cl.departement||'—'}</td>
+      <td><span class="badge blue" style="background:var(--blue-bg);color:var(--blue)">${nb} contrat${nb>1?'s':''}</span></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openClientModal('${cl.id}')">✏️</button></td>
+    </tr>`;
+  }).join('') : emptyRow(8);
+}
+
+function populateClientSelect() {
+  const sel = document.getElementById('m-client');
+  sel.innerHTML = clients.map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MODAL CONTRAT
+// ══════════════════════════════════════════════════════════════════════════
+function openModal(mode, id=null) {
+  const overlay = document.getElementById('modal-overlay');
+  const btnDel  = document.getElementById('btn-delete');
+  populateClientSelect();
+
+  if (mode === 'add' || !id) {
+    document.getElementById('modal-title').textContent = 'Ajouter un contrat';
+    document.getElementById('modal-id').value = '';
+    btnDel.style.display = 'none';
+    ['m-client','m-produit','m-periodicite','m-detail','m-montant','m-dernfact','m-echeance','m-facturebp','m-notes']
+      .forEach(f => { const el=document.getElementById(f); if(el) el.value=''; });
+    document.getElementById('m-periodicite').value = 'Annuel';
+  } else {
+    const c = contracts.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('modal-title').textContent = 'Modifier le contrat';
+    document.getElementById('modal-id').value = id;
+    btnDel.style.display = '';
+    document.getElementById('m-client').value     = c.client_id;
+    document.getElementById('m-produit').value    = c.produit;
+    document.getElementById('m-periodicite').value= c.periodicite;
+    document.getElementById('m-detail').value     = c.detail||'';
+    document.getElementById('m-montant').value    = c.montant_ht||'';
+    document.getElementById('m-dernfact').value   = c.derniere_facture||'';
+    document.getElementById('m-echeance').value   = c.echeance_contractuelle||'';
+    document.getElementById('m-facturebp').value  = c.facture_ebp||'';
+    document.getElementById('m-notes').value      = c.notes||'';
+  }
+  overlay.classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+async function saveContract() {
+  const id       = document.getElementById('modal-id').value;
+  const payload  = {
+    client_id:               document.getElementById('m-client').value,
+    produit:                 document.getElementById('m-produit').value,
+    periodicite:             document.getElementById('m-periodicite').value,
+    detail:                  document.getElementById('m-detail').value,
+    montant_ht:              parseFloat(document.getElementById('m-montant').value)||null,
+    derniere_facture:        document.getElementById('m-dernfact').value||null,
+    echeance_contractuelle:  document.getElementById('m-echeance').value||null,
+    facture_ebp:             document.getElementById('m-facturebp').value,
+    notes:                   document.getElementById('m-notes').value,
+    actif: true,
+  };
+
+  if (!payload.client_id || !payload.produit) { toast('Client et produit obligatoires', 'err'); return; }
+
+  if (demoMode) {
+    if (id) {
+      const idx = contracts.findIndex(c => c.id === id);
+      if (idx >= 0) contracts[idx] = { ...contracts[idx], ...payload };
+    } else {
+      contracts.push({ id: 'k' + Date.now(), ...payload });
+    }
+    closeModal(); renderAll(); toast('Contrat enregistré ✓');
+    return;
+  }
+
+  try {
+    if (id) {
+      await supabase.from('contrats').update(payload).eq('id', id);
+    } else {
+      await supabase.from('contrats').insert(payload);
+    }
+    closeModal(); await loadAll(); toast('Contrat enregistré ✓');
+  } catch(e) { toast('Erreur : ' + e.message, 'err'); }
+}
+
+async function deleteContract() {
+  const id = document.getElementById('modal-id').value;
+  if (!id || !confirm('Supprimer ce contrat ?')) return;
+
+  if (demoMode) {
+    contracts = contracts.filter(c => c.id !== id);
+    closeModal(); renderAll(); toast('Contrat supprimé');
+    return;
+  }
+  try {
+    await supabase.from('contrats').update({ actif: false }).eq('id', id);
+    closeModal(); await loadAll(); toast('Contrat archivé');
+  } catch(e) { toast('Erreur : ' + e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MODAL CLIENT
+// ══════════════════════════════════════════════════════════════════════════
+function openClientModal(id=null) {
+  const overlay = document.getElementById('modal-client-overlay');
+  if (id) {
+    const cl = clients.find(c => c.id === id);
+    if (!cl) return;
+    document.getElementById('modal-client-title').textContent = 'Modifier le client';
+    document.getElementById('mc-id').value      = id;
+    document.getElementById('mc-nom').value     = cl.nom||'';
+    document.getElementById('mc-type').value    = cl.type||'TPE';
+    document.getElementById('mc-contact').value = cl.contact||'';
+    document.getElementById('mc-tel').value     = cl.telephone||'';
+    document.getElementById('mc-email').value   = cl.email||'';
+    document.getElementById('mc-adresse').value = cl.adresse||'';
+    document.getElementById('mc-dept').value    = cl.departement||'';
+    document.getElementById('mc-notes').value   = cl.notes||'';
+  } else {
+    document.getElementById('modal-client-title').textContent = 'Nouveau client';
+    document.getElementById('mc-id').value = '';
+    ['mc-nom','mc-contact','mc-tel','mc-email','mc-adresse','mc-dept','mc-notes'].forEach(f => document.getElementById(f).value='');
+  }
+  overlay.classList.add('open');
+}
+function closeClientModal() { document.getElementById('modal-client-overlay').classList.remove('open'); }
+
+async function saveClient() {
+  const id = document.getElementById('mc-id').value;
+  const payload = {
+    nom:        document.getElementById('mc-nom').value,
+    type:       document.getElementById('mc-type').value,
+    contact:    document.getElementById('mc-contact').value,
+    telephone:  document.getElementById('mc-tel').value,
+    email:      document.getElementById('mc-email').value,
+    adresse:    document.getElementById('mc-adresse').value,
+    departement:document.getElementById('mc-dept').value,
+    notes:      document.getElementById('mc-notes').value,
+  };
+  if (!payload.nom) { toast('Le nom est obligatoire', 'err'); return; }
+
+  if (demoMode) {
+    if (id) { const i = clients.findIndex(c=>c.id===id); if(i>=0) clients[i]={...clients[i],...payload}; }
+    else clients.push({ id:'cl'+Date.now(), ...payload });
+    closeClientModal(); renderAll(); toast('Client enregistré ✓');
+    return;
+  }
+  try {
+    if (id) await supabase.from('clients').update(payload).eq('id', id);
+    else     await supabase.from('clients').insert(payload);
+    closeClientModal(); await loadAll(); toast('Client enregistré ✓');
+  } catch(e) { toast('Erreur : ' + e.message, 'err'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════════════════
+const PAGE_TITLES = {
+  dashboard: 'Vue globale', monthly: 'Par mois',
+  contracts: 'Contrats',   clients: 'Clients', config: 'Configuration'
+};
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const page = item.dataset.page;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('page-' + page).classList.add('active');
+    document.getElementById('topbar-title').textContent = PAGE_TITLES[page];
+  });
+});
+
+// Close modals on overlay click
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeModal(); });
+document.getElementById('modal-client-overlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeClientModal(); });
+
+// ══════════════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════════════
+(async function init() {
+  const url = localStorage.getItem('sb_url');
+  const key = localStorage.getItem('sb_key');
+  if (url && key) {
+    document.getElementById('cfg-url').value = url;
+    document.getElementById('cfg-key').value = key;
+    await connectSupabase(url, key);
+  } else {
+    // démo automatique si pas de config
+    initDemo();
+  }
+})();
+</script>
+</body>
+</html>

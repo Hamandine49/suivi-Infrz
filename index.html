@@ -436,7 +436,7 @@ var demo = false;
 var clients = [];
 var contracts = [];
 var activeFilter = null;
-var selMonth = new Date().getMonth();
+var selMonth = 3; // Avril = index 3
 var selYear = new Date().getFullYear();
 
 var MONTHS = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
@@ -638,9 +638,12 @@ function renderCalendar() {
   var grid = document.getElementById('cal-grid');
   grid.innerHTML = '';
   var now = new Date();
+  // Exercice comptable : commence en avril (mois 3)
+  // L'annee de depart est l'annee courante si on est en avril ou apres, sinon l'annee precedente
+  var fiscalStartYear = (now.getMonth() >= 3) ? now.getFullYear() : now.getFullYear() - 1;
   for (var i=0; i<12; i++) {
-    var m = (now.getMonth()+i)%12;
-    var y = now.getFullYear()+Math.floor((now.getMonth()+i)/12);
+    var startMonth = 3; var m = (startMonth+i)%12;
+    var y = fiscalStartYear + Math.floor((startMonth+i)/12);
     var items = contractsForMonth(y,m);
     var late  = items.filter(function(c){return c._days<0;}).length;
     var amt   = items.reduce(function(s,c){return s+Number(c.montant_ht||0);},0);
